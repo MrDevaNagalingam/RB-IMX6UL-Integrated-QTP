@@ -107,8 +107,18 @@ Replace COM4 with the adapter's actual COM port. On Linux, use
 5. UART3 Loopback Verification
 6. BLE & WiFi UART5 Verification
 7. RS485 UART6 Transmit and Receive Verification
+8. RTC I2C Power Backup
+9. I2C Interface
+10. Indication User LED1 (GPIO2_IO11_ULED1)
+11. Indication User LED2 (GPIO2_IO12_ULED2)
+12. User Switch Status (GPIO2_IO8_INT_SW)
+13. ADC Channel Reading
 q. Quit
 ```
+
+Entering `q`, `quit` or `exit` sends `STOP_QTP` to the target. The target
+acknowledges the command, exits its dispatcher loop, closes the QTP UART and
+stops `main.py` before the host exits interactive mode.
 
 The visible menu entries are defined in interactive_menu.py:
 
@@ -121,6 +131,12 @@ TESTS = {
     "5": ("UART3 Loopback Verification", "TEST_UART3_LOOPBACK"),
     "6": ("BLE & WiFi UART5 Verification", "TEST_UART5_BLE_WIFI"),
     "7": ("RS485 UART6 Transmit and Receive Verification", "TEST_UART6_RS485"),
+    "8": ("RTC I2C Power Backup", "TEST_RTC_I2C_POWER_BACKUP"),
+    "9": ("I2C Interface", "TEST_I2C_INTERFACE"),
+    "10": ("Indication User LED1 (GPIO2_IO11_ULED1)", "TEST_USER_LED1"),
+    "11": ("Indication User LED2 (GPIO2_IO12_ULED2)", "TEST_USER_LED2"),
+    "12": ("User Switch Status (GPIO2_IO8_INT_SW)", "TEST_USER_SWITCH"),
+    "13": ("ADC Channel Reading", "TEST_ADC_CHANNEL_READING"),
 }
 ```
 
@@ -128,7 +144,7 @@ Enter a test number to run that test on the board. The selected host command is 
 to command_handler.py, where TEST_DDR calls test_ddr() and sends DDR_TEST;
 TEST_NAND calls test_nand() and sends NAND_RW_TEST. UART menu entries map to
 UART1_DEBUG_TEST, UART2_RS232_TEST, UART3_LOOPBACK_TEST, UART5_BLE_WIFI_TEST,
-UART6_RS485_TEST. The host waits for completion
+UART6_RS485_TEST, RTC_I2C_POWER_BACKUP_TEST and I2C_INTERFACE_TEST. The host waits for completion
 and shows status and details, then returns to the menu.
 Before the DDR command is sent, the host prints `This test may take some time.`
 Missing utilities or an unsuitable NAND region are
@@ -138,6 +154,18 @@ and QTP communication console. UART5 returns ABORTED until BLE/WiFi hardware is
 mounted. UART3 performs a physical TX-to-RX loopback comparison. Test 7 directly
 opens UART6, transmits the host-entered message, waits for a reply from the RS485
 terminal, reports both messages, and closes the port.
+Test 8 reads `/dev/rtc0` with `hwclock`, asks the operator to confirm the date,
+and runs `date -s` followed by `hwclock -w` only when a corrected date is entered.
+Test 9 scans I2C buses 0 and 1 and validates `0x52`, `0x5a` and `0x68` without
+writing to EEPROM.
+Tests 10 and 11 use GPIO43 and GPIO44. Each active-low LED is driven ON with
+value 0 for two seconds, then OFF with value 1 for two seconds. Already-exported
+GPIOs are reused.
+Test 12 uses active-low GPIO40. It waits for the released value 1 and then detects
+and debounces the pressed value 0.
+Test 13 reads ADC1 channels 1 and 3 plus `in_voltage_scale`, and reports voltage
+using `ADCraw * in_voltage_scale / 1000`. Apply 3.3 V or GND to ADC channel 3
+and confirm the observed change.
 
 DDR_TEST runs `memtester 10M 1`. NAND_RW_TEST runs
 `nandtest -k -p 1 -o 0x1e700000 -l 0xA00000 /dev/mtd2`.
@@ -155,6 +183,13 @@ BAUDRATE = 115200
 ADC1_GPIO1_1_IN1 = "/sys/bus/iio/devices/iio:device0/in_voltage1_raw"
 ADC1_GPIO1_3_IN3 = "/sys/bus/iio/devices/iio:device0/in_voltage3_raw"
 ADC1_VOLTAGE_SCALE = "/sys/bus/iio/devices/iio:device0/in_voltage_scale"
+
+RTC_DEVICE = "/dev/rtc0"
+I2C_BUS_0 = 0
+I2C_BUS_1 = 1
+GPIO2_IO11_ULED1 = "/sys/class/gpio/gpio43"
+GPIO2_IO12_ULED2 = "/sys/class/gpio/gpio44"
+GPIO2_IO8_INT_SW = "/sys/class/gpio/gpio40"
 
 DDR_TEST = "memtester 10M 1"
 NAND_RW_TEST = "nandtest -k -p 1 -o 0x1e700000 -l 0xA00000 /dev/mtd2"

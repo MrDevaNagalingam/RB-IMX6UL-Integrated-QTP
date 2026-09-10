@@ -10,6 +10,9 @@ Latest user notes take precedence over older test-case examples.
 | X_UART3 | MikroBUS and expansion header | /dev/ttymxc2 | Role from user; device mapping provisional |
 | X_UART5 | BLE and Wi-Fi module UART | /dev/ttymxc4 | Role from user; BLE notes use this device, verify on BSP |
 | X_UART6 | RS485 | /dev/ttymxc5 | Role from user; RS485 notes include this device, verify on BSP |
+| GPIO2_IO11_ULED1 | Indication User LED1, active-low | /sys/class/gpio/gpio43 | Explicit user mapping and User_led_testcase |
+| GPIO2_IO12_ULED2 | Indication User LED2, active-low | /sys/class/gpio/gpio44 | Explicit user mapping and User_led_testcase |
+| GPIO2_IO8_INT_SW | User Switch input, active-low | /sys/class/gpio/gpio40 | Explicit user mapping and User_switch_testcase |
 
 User device listing: ttymxc0, ttymxc1, ttymxc2, ttymxc4, ttymxc5.
 QTP uses 115200 baud, 8N1, no flow control by default, matching the reference.

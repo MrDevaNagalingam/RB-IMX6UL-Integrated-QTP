@@ -11,6 +11,12 @@ TESTS = {
     "5": ("UART3 Loopback Verification", "TEST_UART3_LOOPBACK"),
     "6": ("BLE & WiFi UART5 Verification", "TEST_UART5_BLE_WIFI"),
     "7": ("RS485 UART6 Transmit and Receive Verification", "TEST_UART6_RS485"),
+    "8": ("RTC I2C Power Backup", "TEST_RTC_I2C_POWER_BACKUP"),
+    "9": ("I2C Interface", "TEST_I2C_INTERFACE"),
+    "10": ("Indication User LED1 (GPIO2_IO11_ULED1)", "TEST_USER_LED1"),
+    "11": ("Indication User LED2 (GPIO2_IO12_ULED2)", "TEST_USER_LED2"),
+    "12": ("User Switch Status (GPIO2_IO8_INT_SW)", "TEST_USER_SWITCH"),
+    "13": ("ADC Channel Reading", "TEST_ADC_CHANNEL_READING"),
 }
 
 TEST_MESSAGES = {
@@ -23,6 +29,10 @@ TEST_MESSAGES = {
         "Note: The host message is transmitted on UART6. After it appears on the "
         "RS485 terminal, type a reply there for the receive verification."
     ),
+    "TEST_USER_LED1": "Observe User LED1: it will turn ON for 2 seconds and OFF for 2 seconds.",
+    "TEST_USER_LED2": "Observe User LED2: it will turn ON for 2 seconds and OFF for 2 seconds.",
+    "TEST_USER_SWITCH": "Release the User Switch, then press it when requested.",
+    "TEST_ADC_CHANNEL_READING": "ADC channels are 1 and 3; apply 3.3 V or GND and observe the readings.",
 }
 
 
@@ -169,13 +179,27 @@ def collect_test_params(test_cmd):
     return None
 
 
+def collect_rtc_params(cmd_handler):
+    rtc_result = cmd_handler.execute_command("GET_RTC_TIME")
+    if rtc_result.get("status") != "PASS":
+        return None, rtc_result
+    rtc_time = rtc_result.get("measurements", {}).get("rtc_time", "Unknown")
+    print("\nTarget RTC date: {}".format(rtc_time))
+    correct = input("Is this correct? (y/n): ").strip().lower() in ("y", "yes")
+    params = {"correct": correct}
+    if not correct:
+        params["date"] = input("Enter correct date (YYYY-MM-DD HH:MM:SS): ").strip()
+    return params, None
+
+
 def run_single_test(cmd_handler, test_num, logger):
     key = str(test_num)
     if key not in TESTS:
         print("[ERROR] Test #{} not found!".format(test_num))
         return True
     test_desc, test_cmd = TESTS[key]
-    operator_decides_status = test_cmd == "TEST_DDR"
+    operator_decides_status = test_cmd in (
+        "TEST_DDR", "TEST_USER_LED1", "TEST_USER_LED2", "TEST_ADC_CHANNEL_READING")
     logger.log_test_start(test_num, test_desc, test_cmd)
     if test_cmd in TEST_MESSAGES:
         print("[INFO] {}".format(TEST_MESSAGES[test_cmd]))
@@ -187,13 +211,23 @@ def run_single_test(cmd_handler, test_num, logger):
             streamed.append(text)
             print(text, end="", flush=True)
 
-        params = collect_test_params(test_cmd)
-        result = cmd_handler.execute_command(test_cmd, params=params, output_callback=show_live_output)
+        if test_cmd == "TEST_RTC_I2C_POWER_BACKUP":
+            params, rtc_error = collect_rtc_params(cmd_handler)
+            if rtc_error is not None:
+                result = rtc_error
+            else:
+                result = cmd_handler.execute_command(
+                    test_cmd, params=params, output_callback=show_live_output)
+        else:
+            params = collect_test_params(test_cmd)
+            result = cmd_handler.execute_command(
+                test_cmd, params=params, output_callback=show_live_output)
         if result is None:
             result = {"status": "ABORTED", "details": "Command returned no result", "output": ""}
         target_status = result.get("status", "UNKNOWN")
         details = result.get("details", "No details provided")
-        if not operator_decides_status or target_status in (
+        hide_target_result = test_cmd in ("TEST_DDR", "TEST_USER_LED1", "TEST_USER_LED2")
+        if not hide_target_result or target_status in (
                 "ERROR", "NOT_CONFIGURED", "NOT_IMPLEMENTED", "ABORTED"):
             display_details = logger.sanitize(details)
             print("[RESULT] Status: {}".format(target_status))
@@ -202,7 +236,7 @@ def run_single_test(cmd_handler, test_num, logger):
         print("\n" + "-" * 80)
         ack_input = input("Is this test working as expected? (y/n): ").strip().lower()
         working_as_expected = ack_input in ("y", "yes")
-        if operator_decides_status:
+        if operator_decides_status and target_status == "PASS":
             status = "PASS" if working_as_expected else "FAIL"
             details = re.sub(r"^Status\s*:.*$", "Status   : {}".format(status),
                              details, count=1, flags=re.MULTILINE)
@@ -234,6 +268,13 @@ def interactive_mode(cmd_handler, log_dir="test_log"):
             display_main_menu()
             choice = input("\nEnter your choice: ").strip().lower()
             if choice in ("q", "quit", "exit"):
+                print("\n[INFO] Sending stop command to target...")
+                stop_result = cmd_handler.execute_command("STOP_TARGET")
+                if stop_result.get("status") == "PASS":
+                    print("[QTP] Target stopped.")
+                else:
+                    print("[QTP] Target stop failed: {}".format(
+                        logger.sanitize(stop_result.get("details", "Unknown error"))))
                 print("\n[INFO] Exiting test mode...")
                 break
             if choice.isdigit() and choice in TESTS:

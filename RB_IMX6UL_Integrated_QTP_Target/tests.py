@@ -1,4 +1,4 @@
-"""RAM and NAND tests. Hardware execution occurs only on explicit invocation."""
+from datetime import datetime
 import os
 from pathlib import Path
 import re
@@ -9,6 +9,7 @@ import subprocess
 import time
 
 import config
+import gpio
 import serial
 
 
@@ -166,6 +167,162 @@ def uart6_rs485_test(params=None):
     return result("UART6_RS485_TEST", status, details,
                   {"bytes_sent": written, "received": received,
                    "bytes_received": len(received_bytes)})
+
+
+def read_rtc():
+    if not Path(config.RTC_DEVICE).exists():
+        return None, "RTC device not found: " + config.RTC_DEVICE
+    if shutil.which("hwclock") is None:
+        return None, "Missing executable: hwclock"
+    completed = subprocess.run(
+        ["hwclock", "-r", "-f", config.RTC_DEVICE], capture_output=True,
+        text=True, errors="replace")
+    output = (completed.stdout + completed.stderr).strip()
+    if completed.returncode != 0:
+        return None, output or "hwclock read failed"
+    return output, None
+
+
+def get_rtc_time():
+    rtc_time, error = read_rtc()
+    if error:
+        return result("GET_RTC_TIME", "FAIL", "Status   : FAIL\nError    : " + error)
+    return result("GET_RTC_TIME", "PASS",
+                  "Status   : PASS\nRTC Time : " + rtc_time,
+                  {"rtc_time": rtc_time})
+
+
+def rtc_i2c_power_backup_test(params=None):
+    params = params or {}
+    if params.get("correct"):
+        rtc_time, error = read_rtc()
+        if error:
+            return result("RTC_I2C_POWER_BACKUP_TEST", "FAIL",
+                          "Status   : FAIL\nError    : " + error)
+        return result("RTC_I2C_POWER_BACKUP_TEST", "PASS",
+                      "Status   : PASS\nRTC Time : {}".format(rtc_time),
+                      {"rtc_time": rtc_time, "updated": False})
+    requested_date = str(params.get("date", "")).strip()
+    try:
+        parsed_date = datetime.strptime(requested_date, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return result("RTC_I2C_POWER_BACKUP_TEST", "FAIL",
+                      "Status   : FAIL\nUse date format YYYY-MM-DD HH:MM:SS.")
+    normalized_date = parsed_date.strftime("%Y-%m-%d %H:%M:%S")
+    if shutil.which("date") is None or shutil.which("hwclock") is None:
+        return result("RTC_I2C_POWER_BACKUP_TEST", "NOT_CONFIGURED",
+                      "Missing date or hwclock executable.")
+    set_date = subprocess.run(["date", "-s", normalized_date], capture_output=True,
+                              text=True, errors="replace")
+    if set_date.returncode != 0:
+        return result("RTC_I2C_POWER_BACKUP_TEST", "FAIL",
+                      "Status   : FAIL\nError    : " +
+                      (set_date.stderr.strip() or "date update failed"))
+    write_rtc = subprocess.run(["hwclock", "-w", "-f", config.RTC_DEVICE],
+                               capture_output=True, text=True, errors="replace")
+    if write_rtc.returncode != 0:
+        return result("RTC_I2C_POWER_BACKUP_TEST", "FAIL",
+                      "Status   : FAIL\nError    : " +
+                      (write_rtc.stderr.strip() or "RTC write failed"))
+    rtc_time, error = read_rtc()
+    if error:
+        return result("RTC_I2C_POWER_BACKUP_TEST", "FAIL",
+                      "Status   : FAIL\nError    : " + error)
+    return result("RTC_I2C_POWER_BACKUP_TEST", "PASS",
+                  "Status   : PASS\nRTC Time : {}".format(rtc_time),
+                  {"rtc_time": rtc_time, "updated": True})
+
+
+def i2c_row_value(scan_output, address):
+    row = "{:02x}".format(address & 0xF0)
+    column = address & 0x0F
+    for line in scan_output.splitlines():
+        if line.lower().startswith(row + ":"):
+            values = line.split(":", 1)[1].split()
+            if len(values) == 16:
+                return values[column]
+    return None
+
+
+def i2c_interface_test(stream_callback=None):
+    if shutil.which("i2cdetect") is None:
+        return result("I2C_INTERFACE_TEST", "NOT_CONFIGURED",
+                      "Missing executable: i2cdetect")
+    scans = {}
+    for bus in (config.I2C_BUS_0, config.I2C_BUS_1):
+        completed = subprocess.run(["i2cdetect", "-y", "-r", str(bus)],
+                                   capture_output=True, text=True, errors="replace")
+        scans[bus] = completed.stdout + completed.stderr
+        if stream_callback is not None:
+            stream_callback("\n[I2C BUS {}]\n{}".format(bus, scans[bus]))
+        if completed.returncode != 0:
+            return result("I2C_INTERFACE_TEST", "FAIL",
+                          "Status   : FAIL\nI2C bus {} scan failed.".format(bus),
+                          {"scans": scans})
+    checks = {
+        "bus0_0x52": i2c_row_value(scans[config.I2C_BUS_0], 0x52) == "UU",
+        "bus0_0x5a": i2c_row_value(scans[config.I2C_BUS_0], 0x5A) == "5a",
+        "bus1_0x68": i2c_row_value(scans[config.I2C_BUS_1], 0x68) == "UU",
+    }
+    status = "PASS" if all(checks.values()) else "FAIL"
+    raw_output = "[I2C BUS 0]\n{}\n\n[I2C BUS 1]\n{}".format(
+        scans[config.I2C_BUS_0].rstrip(), scans[config.I2C_BUS_1].rstrip())
+    try:
+        log_file = write_target_log("i2c_interface_test.log", raw_output + "\n")
+    except OSError:
+        log_file = None
+    details = "Status   : {}\nBus 0    : 0x52={}, 0x5a={}\nBus 1    : 0x68={}".format(
+        status,
+        "FOUND" if checks["bus0_0x52"] else "MISSING",
+        "FOUND" if checks["bus0_0x5a"] else "MISSING",
+        "FOUND" if checks["bus1_0x68"] else "MISSING")
+    if log_file:
+        details += "\nLog File : {}".format(log_file)
+    return result("I2C_INTERFACE_TEST", status, details,
+                  {"checks": checks, "scans": scans})
+
+
+def user_led_test(test_id, gpio_path, stream_callback=None):
+    try:
+        measurements = gpio.toggle_output(gpio_path, 2, stream_callback)
+    except (OSError, ValueError) as exc:
+        return result(test_id, "FAIL", "Status   : FAIL\nError    : {}".format(exc))
+    return result(test_id, "PASS", "Status   : PASS", measurements)
+
+
+def user_switch_test(stream_callback=None):
+    try:
+        measurements = gpio.wait_for_active_low_press(
+            config.GPIO2_IO8_INT_SW, stream_callback)
+    except (OSError, ValueError) as exc:
+        return result("USER_SWITCH_TEST", "FAIL",
+                      "Status   : FAIL\nError    : {}".format(exc))
+    return result("USER_SWITCH_TEST", "PASS", "Status   : PASS", measurements)
+
+
+def adc_channel_reading_test():
+    try:
+        channel1_raw = int(Path(config.ADC1_GPIO1_1_IN1).read_text().strip())
+        channel3_raw = int(Path(config.ADC1_GPIO1_3_IN3).read_text().strip())
+        scale = float(Path(config.ADC1_VOLTAGE_SCALE).read_text().strip())
+    except (OSError, ValueError) as exc:
+        return result("ADC_CHANNEL_READING_TEST", "FAIL",
+                      "Status   : FAIL\nError    : {}".format(exc))
+    channel1_voltage = channel1_raw * scale / 1000
+    channel3_voltage = channel3_raw * scale / 1000
+    details = (
+        "Status   : PASS\n"
+        "ADC1_IN1 : {} raw, {:.6f} V\n"
+        "ADC1_IN3 : {} raw, {:.6f} V"
+    ).format(channel1_raw, channel1_voltage,
+             channel3_raw, channel3_voltage)
+    return result("ADC_CHANNEL_READING_TEST", "PASS", details, {
+        "adc1_in1_raw": channel1_raw,
+        "adc1_in3_raw": channel3_raw,
+        "in_voltage_scale": scale,
+        "adc1_in1_voltage": round(channel1_voltage, 6),
+        "adc1_in3_voltage": round(channel3_voltage, 6),
+    })
 
 
 def parse_nand_command(command_text):

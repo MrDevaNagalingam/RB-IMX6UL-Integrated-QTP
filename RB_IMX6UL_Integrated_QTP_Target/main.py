@@ -17,6 +17,7 @@ def main():
         with serial.Serial(args.port, args.baud, timeout=0.1, exclusive=True) as connection:
             print("[QTP] Listening on {} at {} baud".format(args.port, args.baud), flush=True)
             dispatcher.serve(connection)
+            print("[QTP] Target stopped.", flush=True)
     except KeyboardInterrupt:
         print("\n[QTP] Target stopped.")
     except (ImportError, OSError) as exc:

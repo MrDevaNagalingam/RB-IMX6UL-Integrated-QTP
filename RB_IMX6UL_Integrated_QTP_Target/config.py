@@ -18,6 +18,12 @@ ADC1_GPIO1_3_IN3 = "/sys/bus/iio/devices/iio:device0/in_voltage3_raw"
 ADC1_VOLTAGE_SCALE = "/sys/bus/iio/devices/iio:device0/in_voltage_scale"
 
 TARGET_LOG_DIR = "/home/root/qtp_logs"
+RTC_DEVICE = "/dev/rtc0"
+I2C_BUS_0 = 0
+I2C_BUS_1 = 1
+GPIO2_IO11_ULED1 = "/sys/class/gpio/gpio43"
+GPIO2_IO12_ULED2 = "/sys/class/gpio/gpio44"
+GPIO2_IO8_INT_SW = "/sys/class/gpio/gpio40"
 
 DDR_TEST = "memtester 10M 1"
 NAND_RW_TEST = "nandtest -k -p 1 -o 0x1e700000 -l 0xA00000 /dev/mtd2"

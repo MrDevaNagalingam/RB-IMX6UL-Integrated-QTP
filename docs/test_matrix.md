@@ -14,9 +14,18 @@ hardware remains NOT_RUN.
 | UART3_LOOPBACK_TEST | UART3 physical loopback; /dev/ttymxc2 on MikroBUS and expansion header; TX connected to RX | Operator enters a message; target writes it to UART3 and reads it back | PASS only when received text exactly matches transmitted text | Automatic with loopback jumper | Implemented; hardware validation pending |
 | UART5_BLE_WIFI_TEST | UART5 BLE/WiFi hardware note; /dev/ttymxc4 | Report that BLE/WiFi hardware is not mounted right now | ABORTED with note | Operator note | Implemented |
 | UART6_RS485_TEST | UART6 bidirectional verification through RS485 hardware; /dev/ttymxc5 | Open the port, transmit the host message, receive the peer-terminal reply, then close | PASS when the complete TX message is written and a non-empty reply is received | Interactive bidirectional | Implemented; hardware validation pending |
+| RTC_I2C_POWER_BACKUP_TEST | RTC verification; /dev/rtc0, hwclock and root permission | Read RTC; operator confirms or enters corrected date; update system time and RTC when requested | PASS when RTC reads successfully and any requested update completes | Interactive | Implemented; hardware validation pending |
+| I2C_INTERFACE_TEST | I2C buses 0 and 1; i2c-tools | Run read-only i2cdetect scans on both buses | PASS when bus 0 has claimed 0x52 and detected 0x5a, and bus 1 has claimed 0x68 | Automatic read-only | Implemented; hardware validation pending |
+| USER_LED1_TEST | Indication User LED1; GPIO2_IO11, sysfs GPIO43 | Reuse/export GPIO, set output, drive active-low ON for 2 seconds and OFF for 2 seconds | Operator confirms visible toggle | Interactive visual | Implemented; hardware validation pending |
+| USER_LED2_TEST | Indication User LED2; GPIO2_IO12, sysfs GPIO44 | Reuse/export GPIO, set output, drive active-low ON for 2 seconds and OFF for 2 seconds | Operator confirms visible toggle | Interactive visual | Implemented; hardware validation pending |
+| USER_SWITCH_TEST | User Switch; GPIO2_IO8, sysfs GPIO40 | Reuse/export GPIO, configure input, wait for release then active-low press | PASS after stable transition from 1 to 0 | Interactive input | Implemented; hardware validation pending |
+| ADC_CHANNEL_READING_TEST | ADC1 IN1, IN3 and IIO scale sysfs attributes | Apply 3.3 V or GND to ADC channel 3; calculate V = raw × scale / 1000 | Sysfs values must be numeric; operator confirms expected response | Interactive measurement | Implemented; hardware validation pending |
 
 Host option 1 sends TEST_DDR; option 2 sends TEST_NAND; options 3-7 send the UART
-verification commands.
+verification commands; options 8 and 9 run RTC and I2C verification.
+Options 10 and 11 run the two indication User LED tests.
+Option 12 verifies the User Switch status transition.
+Option 13 reads the ADC channels and scale.
 The host command mapping is TEST_DDR -> test_ddr() -> DDR_TEST and
 TEST_NAND -> test_nand() -> NAND_RW_TEST. Add future host methods to self.commands.
 Start target main.py once, then select tests on the host. Both responses use a type-2 TLV carrying

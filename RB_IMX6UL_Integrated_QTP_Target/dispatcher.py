@@ -3,9 +3,12 @@ import json
 import struct
 import time
 
+import config
 import tests
 
 COMMANDS = {
+    "STOP_QTP": lambda stream_callback=None, params=None: tests.result(
+        "STOP_QTP", "PASS", "Status   : PASS\nTarget QTP stopped."),
     "DDR_TEST": lambda stream_callback=None, params=None: tests.ram_test("DDR_TEST", stream_callback),
     "NAND_RW_TEST": lambda stream_callback=None, params=None: tests.nand_test("NAND_RW_TEST"),
     "UART1_DEBUG_TEST": lambda stream_callback=None, params=None: tests.uart1_debug_test(params),
@@ -13,6 +16,17 @@ COMMANDS = {
     "UART3_LOOPBACK_TEST": lambda stream_callback=None, params=None: tests.uart3_loopback_test(params),
     "UART5_BLE_WIFI_TEST": lambda stream_callback=None, params=None: tests.uart5_ble_wifi_test(params),
     "UART6_RS485_TEST": lambda stream_callback=None, params=None: tests.uart6_rs485_test(params),
+    "GET_RTC_TIME": lambda stream_callback=None, params=None: tests.get_rtc_time(),
+    "RTC_I2C_POWER_BACKUP_TEST": lambda stream_callback=None, params=None: tests.rtc_i2c_power_backup_test(params),
+    "I2C_INTERFACE_TEST": lambda stream_callback=None, params=None: tests.i2c_interface_test(
+        stream_callback),
+    "USER_LED1_TEST": lambda stream_callback=None, params=None: tests.user_led_test(
+        "USER_LED1_TEST", config.GPIO2_IO11_ULED1, stream_callback),
+    "USER_LED2_TEST": lambda stream_callback=None, params=None: tests.user_led_test(
+        "USER_LED2_TEST", config.GPIO2_IO12_ULED2, stream_callback),
+    "USER_SWITCH_TEST": lambda stream_callback=None, params=None: tests.user_switch_test(
+        stream_callback),
+    "ADC_CHANNEL_READING_TEST": lambda stream_callback=None, params=None: tests.adc_channel_reading_test(),
 }
 
 
@@ -166,3 +180,5 @@ def serve(serial_port, stop=None):
                 write_frame(serial_port, build_response(entries, stream_callback))
             except (OSError, TimeoutError) as exc:
                 print("[QTP] Target error: {}".format(exc), flush=True)
+            if command == "STOP_QTP":
+                break

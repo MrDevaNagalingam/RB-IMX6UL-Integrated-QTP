@@ -9,6 +9,8 @@ class CommandHandler:
     def __init__(self, uart_comm: UARTCommunicator):
         self.uart = uart_comm
         self.commands = {
+            "STOP_TARGET": self.stop_target,
+            "GET_RTC_TIME": self.get_rtc_time,
             "TEST_DDR": self.test_ddr,
             "TEST_NAND": self.test_nand,
             "TEST_UART1_DEBUG": self.test_uart1_debug,
@@ -16,6 +18,12 @@ class CommandHandler:
             "TEST_UART3_LOOPBACK": self.test_uart3_loopback,
             "TEST_UART5_BLE_WIFI": self.test_uart5_ble_wifi,
             "TEST_UART6_RS485": self.test_uart6_rs485,
+            "TEST_RTC_I2C_POWER_BACKUP": self.test_rtc_i2c_power_backup,
+            "TEST_I2C_INTERFACE": self.test_i2c_interface,
+            "TEST_USER_LED1": self.test_user_led1,
+            "TEST_USER_LED2": self.test_user_led2,
+            "TEST_USER_SWITCH": self.test_user_switch,
+            "TEST_ADC_CHANNEL_READING": self.test_adc_channel_reading,
         }
 
     def execute_command(self, command_id, params=None, output_callback=None):
@@ -24,6 +32,14 @@ class CommandHandler:
         answer = {"test_id": command_id, "status": "NOT_IMPLEMENTED",
                   "measurements": {}, "details": "Unsupported host command", "output": ""}
         return answer
+
+    def stop_target(self, params=None, output_callback=None):
+        """Tell the target QTP server to stop."""
+        return self._run_test("STOP_QTP", params, output_callback)
+
+    def get_rtc_time(self, params=None, output_callback=None):
+        """Read target RTC time before operator confirmation."""
+        return self._run_test("GET_RTC_TIME", params, output_callback)
 
     def test_ddr(self, params=None, output_callback=None):
         """Host RAM test entry point; target runs memtester 10M 1."""
@@ -52,6 +68,30 @@ class CommandHandler:
     def test_uart6_rs485(self, params=None, output_callback=None):
         """RS485 UART6 transmit and receive verification."""
         return self._run_test("UART6_RS485_TEST", params, output_callback)
+
+    def test_rtc_i2c_power_backup(self, params=None, output_callback=None):
+        """Verify RTC time and update it when requested by the operator."""
+        return self._run_test("RTC_I2C_POWER_BACKUP_TEST", params, output_callback)
+
+    def test_i2c_interface(self, params=None, output_callback=None):
+        """Verify expected devices on I2C buses 0 and 1."""
+        return self._run_test("I2C_INTERFACE_TEST", params, output_callback)
+
+    def test_user_led1(self, params=None, output_callback=None):
+        """Toggle indication User LED1."""
+        return self._run_test("USER_LED1_TEST", params, output_callback)
+
+    def test_user_led2(self, params=None, output_callback=None):
+        """Toggle indication User LED2."""
+        return self._run_test("USER_LED2_TEST", params, output_callback)
+
+    def test_user_switch(self, params=None, output_callback=None):
+        """Verify the active-low User Switch input transition."""
+        return self._run_test("USER_SWITCH_TEST", params, output_callback)
+
+    def test_adc_channel_reading(self, params=None, output_callback=None):
+        """Read ADC1 channels 1 and 3 with their IIO scale."""
+        return self._run_test("ADC_CHANNEL_READING_TEST", params, output_callback)
 
     def _run_test(self, command, params=None, output_callback=None):
         """Shared UART response validation and reporting for named test methods."""
