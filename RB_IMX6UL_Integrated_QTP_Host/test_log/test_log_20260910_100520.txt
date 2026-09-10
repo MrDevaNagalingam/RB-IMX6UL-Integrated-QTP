@@ -1,0 +1,44 @@
+
+================================================================================
+QTP TEST EXECUTION LOG
+================================================================================
+Session Started: 2026-09-10 10:05:20
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #1: DDR Functionality
+Command: TEST_DDR
+Started: 2026-09-10 10:05:22
+--------------------------------------------------------------------------------
+
+Result: FAIL
+Details: Status   : FAIL
+Log File : /home/root/qtp_logs/ddr_test.log
+Validation Missing : checks: Stuck Address, Random Value, Solid Bits, Block Sequential, Checkerboard, Bit Spread, Bit Flip, Walking Ones, Walking Zeroes
+Working as Expected: NO
+Completed: 2026-09-10 10:11:08
+================================================================================
+
+
+================================================================================
+TEST EXECUTION SUMMARY
+================================================================================
+Session Completed: 2026-09-10 10:11:09
+
+STATISTICS:
+-----------
+Total Tests Executed: 1
+Passed: 0
+Failed: 1
+Skipped: 0
+Aborted: 0
+
+Pass Rate: 0.00%
+
+DETAILED RESULTS:
+-----------------
+Test #1: DDR Functionality
+  Status: FAIL | Expected: NO
+
+================================================================================
