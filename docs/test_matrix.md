@@ -13,12 +13,9 @@ hardware remains NOT_RUN.
 | UART2_RS232_TEST | UART2 QTP communication note; /dev/ttymxc1 | Report that UART2 is used for QTP communication | ABORTED with note | Operator note | Implemented |
 | UART3_LOOPBACK_TEST | UART3 physical loopback; /dev/ttymxc2 on MikroBUS and expansion header; TX connected to RX | Operator enters a message; target writes it to UART3 and reads it back | PASS only when received text exactly matches transmitted text | Automatic with loopback jumper | Implemented; hardware validation pending |
 | UART5_BLE_WIFI_TEST | UART5 BLE/WiFi hardware note; /dev/ttymxc4 | Report that BLE/WiFi hardware is not mounted right now | ABORTED with note | Operator note | Implemented |
-| UART6_RS485_TX_TEST | UART6 transmit through RS485 hardware; /dev/ttymxc5 | Open as a normal UART, write the operator message plus newline and keep the session open | PASS when the complete message is written | Automatic transmit start | Implemented; hardware validation pending |
-| UART6_RS485_TX_STOP | Stop UART6 transmit | Close the transmit serial session | PASS after the transmit session is closed | Automatic stop | Implemented; hardware validation pending |
-| UART6_RS485_RX_TEST | UART6 receive through RS485 hardware; /dev/ttymxc5 | Open as a normal UART and start a background reader | PASS after receive starts | Automatic receive start | Implemented; hardware validation pending |
-| UART6_RS485_RX_STOP | Stop UART6 receive | Stop the reader, close UART6 and report buffered data | PASS when non-empty data was received | Automatic stop and validation | Implemented; hardware validation pending |
+| UART6_RS485_TEST | UART6 bidirectional verification through RS485 hardware; /dev/ttymxc5 | Open the port, transmit the host message, receive the peer-terminal reply, then close | PASS when the complete TX message is written and a non-empty reply is received | Interactive bidirectional | Implemented; hardware validation pending |
 
-Host option 1 sends TEST_DDR; option 2 sends TEST_NAND; options 3-10 send the UART
+Host option 1 sends TEST_DDR; option 2 sends TEST_NAND; options 3-7 send the UART
 verification commands.
 The host command mapping is TEST_DDR -> test_ddr() -> DDR_TEST and
 TEST_NAND -> test_nand() -> NAND_RW_TEST. Add future host methods to self.commands.

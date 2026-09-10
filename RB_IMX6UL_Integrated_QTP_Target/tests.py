@@ -6,20 +6,10 @@ import shlex
 import shutil
 import stat
 import subprocess
-import threading
 import time
 
 import config
 import serial
-
-
-_rs485_lock = threading.Lock()
-_rs485_tx_port = None
-_rs485_rx_port = None
-_rs485_rx_thread = None
-_rs485_rx_stop = threading.Event()
-_rs485_rx_data = bytearray()
-_rs485_rx_error = None
 
 
 def result(test_id, status, details, measurements=None, output=""):
@@ -136,102 +126,46 @@ def uart5_ble_wifi_test(params=None):
     return result("UART5_BLE_WIFI_TEST", "ABORTED", "Status   : ABORTED")
 
 
-def uart6_rs485_tx_test(params=None):
-    global _rs485_tx_port
+def uart6_rs485_test(params=None):
     params = params or {}
     message = str(params.get("message", "")).strip()
     if not message:
-        return result("UART6_RS485_TX_TEST", "FAIL",
+        return result("UART6_RS485_TEST", "FAIL",
                       uart_result_details("FAIL", config.X_UART6,
                                           "No RS485 transmit message entered."))
     transmitted = (message + "\n").encode("utf-8")
+    received_bytes = bytearray()
+    last_received = None
     try:
-        with _rs485_lock:
-            if _rs485_rx_thread is not None and _rs485_rx_thread.is_alive():
-                return result("UART6_RS485_TX_TEST", "FAIL",
-                              "Status   : FAIL\nUART6 receive is running. Stop receive first.")
-            if _rs485_tx_port is None or not _rs485_tx_port.is_open:
-                _rs485_tx_port = serial.Serial(config.X_UART6, config.BAUDRATE, timeout=1)
-            written = _rs485_tx_port.write(transmitted)
-            _rs485_tx_port.flush()
+        with serial.Serial(config.X_UART6, config.BAUDRATE, timeout=0.1) as uart:
+            written = uart.write(transmitted)
+            uart.flush()
+            while True:
+                chunk = uart.read(256)
+                if chunk:
+                    finished = False
+                    for character in chunk:
+                        if character in (10, 13) and received_bytes:
+                            finished = True
+                            break
+                        if character not in (10, 13):
+                            received_bytes.append(character)
+                    last_received = time.monotonic()
+                    if finished:
+                        break
+                elif (last_received is not None
+                      and time.monotonic() - last_received >= 1.0):
+                    break
     except (OSError, serial.SerialException) as exc:
-        return result("UART6_RS485_TX_TEST", "FAIL",
+        return result("UART6_RS485_TEST", "FAIL",
                       "Status   : FAIL\nError    : {}".format(exc))
-    status = "PASS" if written == len(transmitted) else "FAIL"
-    details = "Status   : {}\nSent     : {}".format(status, message)
-    return result("UART6_RS485_TX_TEST", status, details,
-                  {"bytes_sent": written})
-
-
-def uart6_rs485_tx_stop(params=None):
-    global _rs485_tx_port
-    with _rs485_lock:
-        if _rs485_tx_port is not None and _rs485_tx_port.is_open:
-            _rs485_tx_port.close()
-        _rs485_tx_port = None
-    return result("UART6_RS485_TX_STOP", "PASS", "Status   : PASS\nUART6 transmit stopped.")
-
-
-def _uart6_rs485_receive_worker():
-    global _rs485_rx_error, _rs485_rx_port
-    try:
-        while not _rs485_rx_stop.is_set():
-            chunk = _rs485_rx_port.read(256)
-            if chunk:
-                with _rs485_lock:
-                    _rs485_rx_data.extend(chunk)
-    except (OSError, serial.SerialException) as exc:
-        _rs485_rx_error = str(exc)
-    finally:
-        if _rs485_rx_port is not None and _rs485_rx_port.is_open:
-            _rs485_rx_port.close()
-
-
-def uart6_rs485_rx_test(params=None, stream_callback=None):
-    global _rs485_rx_port, _rs485_rx_thread, _rs485_rx_error
-    with _rs485_lock:
-        if _rs485_rx_thread is not None and _rs485_rx_thread.is_alive():
-            return result("UART6_RS485_RX_TEST", "PASS",
-                          "Status   : PASS\nUART6 receive is already running.")
-        if _rs485_tx_port is not None and _rs485_tx_port.is_open:
-            return result("UART6_RS485_RX_TEST", "FAIL",
-                          "Status   : FAIL\nStop UART6 transmit before starting receive.")
-        try:
-            _rs485_rx_port = serial.Serial(config.X_UART6, config.BAUDRATE, timeout=0.1)
-        except (OSError, serial.SerialException) as exc:
-            return result("UART6_RS485_RX_TEST", "FAIL",
-                          "Status   : FAIL\nError    : {}".format(exc))
-        _rs485_rx_data.clear()
-        _rs485_rx_error = None
-        _rs485_rx_stop.clear()
-        _rs485_rx_thread = threading.Thread(target=_uart6_rs485_receive_worker, daemon=True)
-        _rs485_rx_thread.start()
-    return result("UART6_RS485_RX_TEST", "PASS",
-                  "Status   : PASS\nUART6 receive started. Select test 10 to stop.")
-
-
-def uart6_rs485_rx_stop(params=None):
-    global _rs485_rx_port, _rs485_rx_thread
-    with _rs485_lock:
-        thread = _rs485_rx_thread
-        if thread is None or not thread.is_alive():
-            return result("UART6_RS485_RX_STOP", "FAIL",
-                          "Status   : FAIL\nUART6 receive is not running.")
-        _rs485_rx_stop.set()
-    thread.join(2)
-    with _rs485_lock:
-        received_bytes = bytes(_rs485_rx_data)
-        error = _rs485_rx_error
-        _rs485_rx_thread = None
-        _rs485_rx_port = None
     received = received_bytes.decode("utf-8", errors="replace").rstrip("\r\n")
-    status = "PASS" if received and not error else "FAIL"
-    details = "Status   : {}\nReceived : {}".format(
-        status, received if received else "No data received")
-    if error:
-        details += "\nError    : {}".format(error)
-    return result("UART6_RS485_RX_STOP", status, details,
-                  {"received": received, "bytes_received": len(received_bytes)})
+    status = "PASS" if written == len(transmitted) and received else "FAIL"
+    details = "Status   : {}\nSent     : {}\nReceived : {}".format(
+        status, message, received if received else "No data received")
+    return result("UART6_RS485_TEST", status, details,
+                  {"bytes_sent": written, "received": received,
+                   "bytes_received": len(received_bytes)})
 
 
 def parse_nand_command(command_text):

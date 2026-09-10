@@ -12,11 +12,7 @@ COMMANDS = {
     "UART2_RS232_TEST": lambda stream_callback=None, params=None: tests.uart2_rs232_test(params),
     "UART3_LOOPBACK_TEST": lambda stream_callback=None, params=None: tests.uart3_loopback_test(params),
     "UART5_BLE_WIFI_TEST": lambda stream_callback=None, params=None: tests.uart5_ble_wifi_test(params),
-    "UART6_RS485_TX_TEST": lambda stream_callback=None, params=None: tests.uart6_rs485_tx_test(params),
-    "UART6_RS485_TX_STOP": lambda stream_callback=None, params=None: tests.uart6_rs485_tx_stop(params),
-    "UART6_RS485_RX_TEST": lambda stream_callback=None, params=None: tests.uart6_rs485_rx_test(
-        params, stream_callback),
-    "UART6_RS485_RX_STOP": lambda stream_callback=None, params=None: tests.uart6_rs485_rx_stop(params),
+    "UART6_RS485_TEST": lambda stream_callback=None, params=None: tests.uart6_rs485_test(params),
 }
 
 

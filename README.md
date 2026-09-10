@@ -106,10 +106,7 @@ Replace COM4 with the adapter's actual COM port. On Linux, use
 4. RS232 UART2 Verification
 5. UART3 Loopback Verification
 6. BLE & WiFi UART5 Verification
-7. RS485 UART6 Transmit Test
-8. RS485 UART6 Transmit Stop
-9. RS485 UART6 Receive Test
-10. RS485 UART6 Receive Stop
+7. RS485 UART6 Transmit and Receive Verification
 q. Quit
 ```
 
@@ -123,10 +120,7 @@ TESTS = {
     "4": ("RS232 UART2 Verification", "TEST_UART2_RS232"),
     "5": ("UART3 Loopback Verification", "TEST_UART3_LOOPBACK"),
     "6": ("BLE & WiFi UART5 Verification", "TEST_UART5_BLE_WIFI"),
-    "7": ("RS485 UART6 Transmit Test", "TEST_UART6_RS485_TX"),
-    "8": ("RS485 UART6 Transmit Stop", "TEST_UART6_RS485_TX_STOP"),
-    "9": ("RS485 UART6 Receive Test", "TEST_UART6_RS485_RX"),
-    "10": ("RS485 UART6 Receive Stop", "TEST_UART6_RS485_RX_STOP"),
+    "7": ("RS485 UART6 Transmit and Receive Verification", "TEST_UART6_RS485"),
 }
 ```
 
@@ -134,18 +128,16 @@ Enter a test number to run that test on the board. The selected host command is 
 to command_handler.py, where TEST_DDR calls test_ddr() and sends DDR_TEST;
 TEST_NAND calls test_nand() and sends NAND_RW_TEST. UART menu entries map to
 UART1_DEBUG_TEST, UART2_RS232_TEST, UART3_LOOPBACK_TEST, UART5_BLE_WIFI_TEST,
-UART6_RS485_TX_TEST, UART6_RS485_TX_STOP, UART6_RS485_RX_TEST and
-UART6_RS485_RX_STOP. The host waits for completion
+UART6_RS485_TEST. The host waits for completion
 and shows status and details, then returns to the menu.
 Before the DDR command is sent, the host prints `This test may take some time.`
 Missing utilities or an unsuitable NAND region are
 reported as NOT_CONFIGURED by the target.
 UART1 and UART2 return ABORTED because they are already used as the debug console
 and QTP communication console. UART5 returns ABORTED until BLE/WiFi hardware is
-mounted. UART3 performs a physical TX-to-RX loopback comparison. Test 7 opens
-UART6 and transmits the entered message; test 8 closes the transmit session.
-Test 9 opens UART6 and starts a background receiver. Test 10 stops receive,
-closes UART6 and reports all collected data.
+mounted. UART3 performs a physical TX-to-RX loopback comparison. Test 7 directly
+opens UART6, transmits the host-entered message, waits for a reply from the RS485
+terminal, reports both messages, and closes the port.
 
 DDR_TEST runs `memtester 10M 1`. NAND_RW_TEST runs
 `nandtest -k -p 1 -o 0x1e700000 -l 0xA00000 /dev/mtd2`.

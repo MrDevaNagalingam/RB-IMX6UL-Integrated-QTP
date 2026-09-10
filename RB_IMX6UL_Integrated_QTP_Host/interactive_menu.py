@@ -10,10 +10,7 @@ TESTS = {
     "4": ("RS232 UART2 Verification", "TEST_UART2_RS232"),
     "5": ("UART3 Loopback Verification", "TEST_UART3_LOOPBACK"),
     "6": ("BLE & WiFi UART5 Verification", "TEST_UART5_BLE_WIFI"),
-    "7": ("RS485 UART6 Transmit Test", "TEST_UART6_RS485_TX"),
-    "8": ("RS485 UART6 Transmit Stop", "TEST_UART6_RS485_TX_STOP"),
-    "9": ("RS485 UART6 Receive Test", "TEST_UART6_RS485_RX"),
-    "10": ("RS485 UART6 Receive Stop", "TEST_UART6_RS485_RX_STOP"),
+    "7": ("RS485 UART6 Transmit and Receive Verification", "TEST_UART6_RS485"),
 }
 
 TEST_MESSAGES = {
@@ -22,13 +19,10 @@ TEST_MESSAGES = {
     "TEST_UART2_RS232": "Note: UART2 /dev/ttymxc1 is used for QTP communication; this test is skipped.",
     "TEST_UART3_LOOPBACK": "Note: UART3 /dev/ttymxc2 is present on MikroBUS and expansion header.",
     "TEST_UART5_BLE_WIFI": "Note: UART5 /dev/ttymxc4 is for BLE/WiFi; hardware is not mounted right now.",
-    "TEST_UART6_RS485_TX": "Note: UART6 /dev/ttymxc5 is RS485.",
-    "TEST_UART6_RS485_TX_STOP": "Note: This closes the UART6 transmit port.",
-    "TEST_UART6_RS485_RX": (
-        "Note: UART6 /dev/ttymxc5 is listening. On the connected RS485 peer, "
-        "send a message, then select test 10 to stop receiving."
+    "TEST_UART6_RS485": (
+        "Note: The host message is transmitted on UART6. After it appears on the "
+        "RS485 terminal, type a reply there for the receive verification."
     ),
-    "TEST_UART6_RS485_RX_STOP": "Note: This stops UART6 receive and shows the received data.",
 }
 
 
@@ -169,7 +163,7 @@ def collect_test_params(test_cmd):
     if test_cmd == "TEST_UART3_LOOPBACK":
         message = input("Enter UART3 loopback message: ")
         return {"message": message}
-    if test_cmd == "TEST_UART6_RS485_TX":
+    if test_cmd == "TEST_UART6_RS485":
         message = input("Enter RS485 UART6 transmit message: ")
         return {"message": message}
     return None

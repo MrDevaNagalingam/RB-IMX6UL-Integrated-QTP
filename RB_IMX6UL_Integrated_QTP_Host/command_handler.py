@@ -15,10 +15,7 @@ class CommandHandler:
             "TEST_UART2_RS232": self.test_uart2_rs232,
             "TEST_UART3_LOOPBACK": self.test_uart3_loopback,
             "TEST_UART5_BLE_WIFI": self.test_uart5_ble_wifi,
-            "TEST_UART6_RS485_TX": self.test_uart6_rs485_tx,
-            "TEST_UART6_RS485_TX_STOP": self.test_uart6_rs485_tx_stop,
-            "TEST_UART6_RS485_RX": self.test_uart6_rs485_rx,
-            "TEST_UART6_RS485_RX_STOP": self.test_uart6_rs485_rx_stop,
+            "TEST_UART6_RS485": self.test_uart6_rs485,
         }
 
     def execute_command(self, command_id, params=None, output_callback=None):
@@ -52,21 +49,9 @@ class CommandHandler:
         """UART5 BLE/Wi-Fi hardware is not mounted for this stage."""
         return self._run_test("UART5_BLE_WIFI_TEST", params, output_callback)
 
-    def test_uart6_rs485_tx(self, params=None, output_callback=None):
-        """RS485 transmit operator-message verification."""
-        return self._run_test("UART6_RS485_TX_TEST", params, output_callback)
-
-    def test_uart6_rs485_tx_stop(self, params=None, output_callback=None):
-        """Close the UART6 transmit session."""
-        return self._run_test("UART6_RS485_TX_STOP", params, output_callback)
-
-    def test_uart6_rs485_rx(self, params=None, output_callback=None):
-        """RS485 receive operator-confirmation verification."""
-        return self._run_test("UART6_RS485_RX_TEST", params, output_callback)
-
-    def test_uart6_rs485_rx_stop(self, params=None, output_callback=None):
-        """Stop UART6 receive and return the collected data."""
-        return self._run_test("UART6_RS485_RX_STOP", params, output_callback)
+    def test_uart6_rs485(self, params=None, output_callback=None):
+        """RS485 UART6 transmit and receive verification."""
+        return self._run_test("UART6_RS485_TEST", params, output_callback)
 
     def _run_test(self, command, params=None, output_callback=None):
         """Shared UART response validation and reporting for named test methods."""
