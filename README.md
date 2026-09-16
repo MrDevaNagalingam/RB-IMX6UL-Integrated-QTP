@@ -1,118 +1,73 @@
-# RB-IMX6UL Integrated QTP
+# BOSCH-IMX8M-PLUS Integrated QTP
 
-Start the target UART server, then run the host and select a numbered test.
-The host sends selected test commands over RS232, the target executes the test,
-and the host displays the returned status/details and saves ESR0C-style text logs.
-DDR, NAND and the first UART operator-verification tests are implemented.
-The target main.py file only starts the UART server; target logic is split by role.
+Start the target UART server on the board, then run the host and select the
+numbered test. The host sends commands over the UART3 QTP console, the target
+executes the test, and the host displays status/details and saves text logs.
 
 ## Project structure
 
 ```text
-RB-IMX6UL-Integrated-QTP/
-|-- RB_IMX6UL_Integrated_QTP_Host/
+BOSCH-IMX8M-PLUS-Integrated-QTP/
+|-- BOSCH_IMX8M_PLUS_Integrated_QTP_Host/
 |   |-- main.py
 |   |-- command_handler.py
 |   |-- uart_handler.py
 |   |-- interactive_menu.py
 |   '-- requirements.txt
-|-- RB_IMX6UL_Integrated_QTP_Target/
+|-- BOSCH_IMX8M_PLUS_Integrated_QTP_Target/
 |   |-- main.py
 |   |-- config.py
 |   |-- dispatcher.py
 |   |-- tests.py
-|   |-- requirements.txt
-|   '-- gpio.py
+|   '-- requirements.txt
 |-- docs/
 |   |-- hardware_mapping.md
 |   '-- test_matrix.md
 '-- README.md
 ```
 
-Host main owns startup and cleanup; uart_handler owns transport and protocol;
-interactive_menu owns the numbered TESTS menu that the operator sees;
-command_handler owns the host command lookup, results and reporting.
-Target main owns only startup; dispatcher owns pack/unpack, UART frame reading
-and command dispatch; config owns hardware settings; tests owns RAM/NAND tests;
-gpio is reserved for future GPIO operations.
-No additional Python modules or qtp package are planned.
-
-## Reference and source notes
-
-Behavior reference (unchanged):
-`C:\Deva_Workspace\Training\Signify\ESR0C\__git\ESR0C\ESR0C-Integrated-QTP`.
-
-Its host main imports UARTCommunicator, CommandHandler and the enhanced
-interactive menu, then connects, runs the menu and disconnects.
-This project follows that active workflow, with the numbered menu and reporting
-in the requested host modules and a thin target main.py. The inspected sources were host main.py,
-qtp/uart_comm.py, qtp/command_handler.py, qtp/interactive_menu_enhanced.py,
-and target main.py and protocol.py. Legacy *_working.py files are not used.
-
-Wire format matches the active ESR0C V2 encoder: AA, big-endian uint16 payload
-length, big-endian uint16 checksum (sum(payload) % 0xFFFF), TLV payload, BB.
-Each TLV has a one-byte type and two-byte length. Type 1 carries a command;
-type 2 carries a response, type 4 carries live output chunks, and type 5 carries
-JSON parameters for operator-entered messages. RB responses contain JSON so
-statuses are preserved exactly. RB adds type 3 for a request ID echoed in the
-response, preventing stale results from being assigned to a later request. Use the RB host and target
-together: framing compatibility does not imply ESR0C application interchangeability.
-Target protocol helpers remain in dispatcher.py and host helpers in uart_handler.py.
-
-Test-case source:
-`C:\Deva_Workspace\Training\RB-imx6ul\imx6ul_testcases\imx6ul_testcases`.
-These files are reference material, not implemented or validated tests.
-
 ## Wiring and startup
 
-Connect the host through a USB-to-RS232 adapter to X_UART2. Confirm TX/RX/GND
-and the connector pinout. Keep X_UART1 (/dev/ttymxc0) for the debug shell.
-Both QTP endpoints default to 115200 baud, 8 data bits, no parity, one stop bit,
-no flow control. Ensure no login service or other application uses X_UART2.
+Use UART3 as the QTP console. The target default is `/dev/ttymxc2` at 115200
+baud, 8 data bits, no parity, one stop bit, and no flow control.
 
-Use Python 3.7+ and pyserial 3.5 on both sides. Target also needs memtester and mtd-utils (nandtest)
-utilities. Include these utilities in the Yocto image, or install the corresponding
-packages through the image's package manager. The board's package manager and
-Python version remain to be confirmed; no package-manager command is assumed.
-
-Copy RB_IMX6UL_Integrated_QTP_Target to the board. From that directory, install
-pyserial if it is not provided by the BSP, then start the server through the debug
-console or SSH as root:
+Copy `BOSCH_IMX8M_PLUS_Integrated_QTP_Target` to the board. From that directory,
+install pyserial if it is not already in the BSP image, then start the server:
 
 ```sh
 python3 -m pip install pyserial==3.5
 python3 main.py
 ```
 
-The server listens on /dev/ttymxc1; it waits for host commands and stays running
-after each test. Override the configured link if needed with
-`python3 main.py --port /dev/ttymxc1 --baud 115200`.
-For images without pip, include python3-pyserial in the BSP image instead.
+The server listens on `/dev/ttymxc2`. Override the configured link if needed:
 
-On the PC, open RB_IMX6UL_Integrated_QTP_Host and run:
+```sh
+python3 main.py --port /dev/ttymxc2 --baud 115200
+```
+
+On the PC, open `BOSCH_IMX8M_PLUS_Integrated_QTP_Host` and run:
 
 ```powershell
 python -m pip install -r requirements.txt
 python main.py COM4
 ```
 
-Replace COM4 with the adapter's actual COM port. On Linux, use
-`python3 main.py /dev/ttyUSB0`. The menu offers:
+Replace `COM4` with the adapter's actual COM port. On Linux, use a device such
+as `/dev/ttyUSB0`.
+
+## Test menu
 
 ```text
-1. DDR Functionality
-2. NAND Flash Functionality
-3. UART1 Debug Console Verification
-4. RS232 UART2 Verification
-5. UART3 Loopback Verification
-6. BLE & WiFi UART5 Verification
-7. RS485 UART6 Transmit and Receive Verification
-8. RTC I2C Power Backup
-9. I2C Interface
-10. Indication User LED1 (GPIO2_IO11_ULED1)
-11. Indication User LED2 (GPIO2_IO12_ULED2)
-12. User Switch Status (GPIO2_IO8_INT_SW)
-13. ADC Channel Reading
+1. TC-01 Boot mode
+2. TC-02 UART1 Debug Console
+3. TC-03 Reset Switch (S1)
+4. TC-04 SD Card Write/ Read / Delete
+5. TC-05 Indication LED1 Pin no.(GPIO2_IO06)
+6. TC-05 Indication LED2 Pin no.(GPIO2_IO07)
+7. TC-05 Indication LED3 Pin no.(GPIO2_IO08)
+8. TC-05 Indication LED4 Pin no.(GPIO2_IO09)
+9. TC-06 Ethernet0 throughput test pin no.(X8)
+10. TC-06 Ethernet1 throughput test pin no.(X9)
 q. Quit
 ```
 
@@ -120,110 +75,112 @@ Entering `q`, `quit` or `exit` sends `STOP_QTP` to the target. The target
 acknowledges the command, exits its dispatcher loop, closes the QTP UART and
 stops `main.py` before the host exits interactive mode.
 
-The visible menu entries are defined in interactive_menu.py:
+## TC-01 Boot Mode
 
-```python
-TESTS = {
-    "1": ("DDR Functionality", "TEST_DDR"),
-    "2": ("NAND Flash Functionality", "TEST_NAND"),
-    "3": ("UART1 Debug Console Verification", "TEST_UART1_DEBUG"),
-    "4": ("RS232 UART2 Verification", "TEST_UART2_RS232"),
-    "5": ("UART3 Loopback Verification", "TEST_UART3_LOOPBACK"),
-    "6": ("BLE & WiFi UART5 Verification", "TEST_UART5_BLE_WIFI"),
-    "7": ("RS485 UART6 Transmit and Receive Verification", "TEST_UART6_RS485"),
-    "8": ("RTC I2C Power Backup", "TEST_RTC_I2C_POWER_BACKUP"),
-    "9": ("I2C Interface", "TEST_I2C_INTERFACE"),
-    "10": ("Indication User LED1 (GPIO2_IO11_ULED1)", "TEST_USER_LED1"),
-    "11": ("Indication User LED2 (GPIO2_IO12_ULED2)", "TEST_USER_LED2"),
-    "12": ("User Switch Status (GPIO2_IO8_INT_SW)", "TEST_USER_SWITCH"),
-    "13": ("ADC Channel Reading", "TEST_ADC_CHANNEL_READING"),
-}
-```
+Host option 1 sends `TEST_BOOT_MODE`, which maps to target command
+`BOOT_MODE_TEST`. The target reads `SRC_SBMR2` address `0x30390070` with
+`devmem2`, decodes `BOOT_MODE[3:0]` from bits `[27:24]`, and reports:
 
-Enter a test number to run that test on the board. The selected host command is handed
-to command_handler.py, where TEST_DDR calls test_ddr() and sends DDR_TEST;
-TEST_NAND calls test_nand() and sends NAND_RW_TEST. UART menu entries map to
-UART1_DEBUG_TEST, UART2_RS232_TEST, UART3_LOOPBACK_TEST, UART5_BLE_WIFI_TEST,
-UART6_RS485_TEST, RTC_I2C_POWER_BACKUP_TEST and I2C_INTERFACE_TEST. The host waits for completion
-and shows status and details, then returns to the menu.
-Before the DDR command is sent, the host prints `This test may take some time.`
-Missing utilities or an unsuitable NAND region are
-reported as NOT_CONFIGURED by the target.
-UART1 and UART2 return ABORTED because they are already used as the debug console
-and QTP communication console. UART5 returns ABORTED until BLE/WiFi hardware is
-mounted. UART3 performs a physical TX-to-RX loopback comparison. Test 7 directly
-opens UART6, transmits the host-entered message, waits for a reply from the RS485
-terminal, reports both messages, and closes the port.
-Test 8 reads `/dev/rtc0` with `hwclock`, asks the operator to confirm the date,
-and runs `date -s` followed by `hwclock -w` only when a corrected date is entered.
-Test 9 scans I2C buses 0 and 1 and validates `0x52`, `0x5a` and `0x68` without
-writing to EEPROM.
-Tests 10 and 11 use GPIO43 and GPIO44. Each active-low LED is driven ON with
-value 0 for two seconds, then OFF with value 1 for two seconds. Already-exported
-GPIOs are reused.
-Test 12 uses active-low GPIO40. It waits for the released value 1 and then detects
-and debounces the pressed value 0.
-Test 13 reads ADC1 channels 1 and 3 plus `in_voltage_scale`, and reports voltage
-using `ADCraw * in_voltage_scale / 1000`. Apply 3.3 V or GND to ADC channel 3
-and confirm the observed change.
+- board model from `/proc/device-tree/model`
+- raw `SRC_SBMR2` value
+- `X_BOOT_MODE3` through `X_BOOT_MODE0`
+- decoded boot mode value
+- boot source text from the i.MX8M Plus boot-mode table
 
-DDR_TEST runs `memtester 10M 1`. NAND_RW_TEST runs
-`nandtest -k -p 1 -o 0x1e700000 -l 0xA00000 /dev/mtd2`.
-The exact command strings are in target config.py:
+The boot-source table used by the test is:
 
-```python
-X_UART1 = "/dev/ttymxc0"
-X_UART2 = "/dev/ttymxc1"
-X_UART3 = "/dev/ttymxc2"
-X_UART5 = "/dev/ttymxc4"
-X_UART6 = "/dev/ttymxc5"
-QTP_CONSOLE = X_UART2
-BAUDRATE = 115200
+| Value | Boot source |
+|---|---|
+| 0x0 | Boot from internal fuses |
+| 0x1 | USB Serial Downloader |
+| 0x2 | Boot from on-board eMMC U4 |
+| 0x3 | Boot from external SD card SD2 |
+| 0x6 | Boot from on-board QSPI Flash U5 |
+| 0xF | JTAG mode |
 
-ADC1_GPIO1_1_IN1 = "/sys/bus/iio/devices/iio:device0/in_voltage1_raw"
-ADC1_GPIO1_3_IN3 = "/sys/bus/iio/devices/iio:device0/in_voltage3_raw"
-ADC1_VOLTAGE_SCALE = "/sys/bus/iio/devices/iio:device0/in_voltage_scale"
+`devmem2` must be available on the target image and the test must run with
+permission to read the register.
 
-RTC_DEVICE = "/dev/rtc0"
-I2C_BUS_0 = 0
-I2C_BUS_1 = 1
-GPIO2_IO11_ULED1 = "/sys/class/gpio/gpio43"
-GPIO2_IO12_ULED2 = "/sys/class/gpio/gpio44"
-GPIO2_IO8_INT_SW = "/sys/class/gpio/gpio40"
+## TC-02 UART1 Debug Console
 
-DDR_TEST = "memtester 10M 1"
-NAND_RW_TEST = "nandtest -k -p 1 -o 0x1e700000 -l 0xA00000 /dev/mtd2"
-```
+Host option 2 sends `TEST_UART1_DEBUG_CONSOLE`, which maps to target command
+`UART1_DEBUG_CONSOLE_TEST`. It returns `ABORTED` with the message
+"UART1 is used for the debug console. UART1 test aborted." No UART1 port is
+opened or tested. QTP communication continues over UART3.
 
-Commands are sent once; they are not automatically repeated. Host Ctrl+C closes the connection and saves
-the summary; it does not cancel a running target test. Check the debug console
-and allow an active test to finish before starting another session.
+## TC-03 Reset Switch (S1)
 
-Host logs are saved under test_log/ relative to the host working directory:
-test_log_<timestamp>.txt contains the ESR0C-style detailed execution log;
-test_summary_<timestamp>.txt contains counts and per-test status/details.
-Use --report-dir to change the output directory. Target command output is saved
-on the board under /home/root/qtp_logs/.
-DDR output is streamed live to the host while memtester runs. Target command
-logs stay on the board under /home/root/qtp_logs/. Other UART responses return
-status, measurements and the ESR0C-style details block.
-The host process exit code reflects startup/runtime errors, not aggregate test
-results; use the summary for pass/fail decisions.
+Host option 3 prompts the operator to press reset button S1 and observe the
+cold-start boot sequence on the debug console. After checking the reset and
+boot, enter `YES` (`y`) for PASS or `NO` (`n`) for FAIL on the host. The host records that result in the
+test log and summary without sending a target command or waiting for a UART
+response. Restart target QTP with `python3.12 main.py` after boot before
+running another target test.
 
-NAND writes the configured 10 MiB region, from 0x1e700000 to 0x1f100000
-(exclusive), relative to /dev/mtd2. Use an offline, reserved test region with no
-other users. The runner rejects mounted/UBI-attached devices and invalid geometry;
-these checks cannot prove the region contains no needed offline data.
-The -k option restores contents after testing, but interruption, power loss or
-failure can leave contents unrestored. Back up needed data first.
+## TC-04 SD Card Write/ Read / Delete
 
-Review docs/hardware_mapping.md before adding each test. Agree its command,
-prerequisites, procedure and acceptance criteria in docs/test_matrix.md, then
-add the host command/menu entry, target dispatcher route and target test function
-incrementally.
-Results distinguish PASS, FAIL, ERROR, ABORTED, NOT_CONFIGURED and NOT_IMPLEMENTED.
-The supplied board transcripts show successful manual runs. This new runner has
-not been hardware-validated; local checks use mocked utilities and device metadata.
-The menu-to-target-to-report flow was checked using a fragmented simulated serial
-link and mocked memtester/nandtest. Frames matched the reference's active encoder.
-Checks also cover malformed frames, stale request IDs and cleanup.
+Option 4 sends `SD_CARD_RW_DELETE_TEST` through the host command
+`TEST_SD_CARD_RW_DELETE`. The target runs five cycles on `/dev/mmcblk1p5`:
+write 10 MiB of random data, flush it to storage, read and compare size and
+SHA256, then delete the test file. All cycles and cleanup must succeed for PASS.
+Progress displays the last six SHA256 characters on the host. Full hashes
+are compared for verification and saved only on the target in
+`/qtp_log/sd_card.txt` (configured by `SD_LOG_FILE`). Each completed run is
+appended with its start time, operations, and final result. The host displays
+the target log location and saves only abbreviated progress. A target log
+write failure makes the test FAIL.
+
+Run target QTP as root. Confirm the SD partition in `config.py` before use.
+An existing mount is reused; otherwise QTP mounts at `/mnt/sd_test` and
+unmounts afterward. Files are created in a unique temporary directory;
+existing files are not overwritten. This is a filesystem readback test;
+reads can use the kernel cache. The SD-card test functions are in `tests.py`.
+
+## TC-05 Indication LEDs
+
+Options 5-8 test LED1-LED4 individually through `/sys/class/leds/led1` to
+`led4`. GPIO mappings are GPIO2_IO06, GPIO2_IO07, GPIO2_IO08, GPIO2_IO09
+(gpiochip1 lines 6-9). Menu pin labels show these GPIO signal names.
+LED paths, GPIO mappings, and ON/OFF timings are defined in target `config.py`.
+Run as root. The selected LED's trigger is disabled, and it is turned on for
+two seconds, then off for two seconds and left off. Other LEDs are unchanged.
+After a successful sequence, operator YES records PASS and NO records FAIL.
+Hardware access failures remain FAIL regardless of acknowledgment.
+
+## TC-06 Ethernet Throughput
+
+Options 9 and 10 test Ethernet0/X8 and Ethernet1/X9 for 60 seconds each.
+The PC report follows the ESR0C numbered-step layout, with timestamped
+interval rows and a final summary showing duration, samples, received data,
+average/minimum throughput, threshold, and result. Packet loss is N/A for
+this TCP test; link stability is not inferred from throughput alone.
+Target `config.py` contains `ETH_INTERFACES` (defaults `eth0` and `eth1`),
+duration, port 5201, reporting interval 10 seconds, and minimum throughput.
+Confirm interface names with `ip link` and the board connector mapping.
+Bring the selected interface up before testing.
+
+Install iperf3 on PC and target. On the PC it can be on PATH or in the host
+`iperf3` folder with its required DLLs. Run the Windows host as Administrator.
+Connect the selected port to the PC. The host reads `ipconfig`, selects the
+first usable Ethernet adapter (excluding Wi-Fi and common virtual adapters),
+and derives an adjacent board address within its subnet, excluding the gateway.
+There are no IP prompts. Use a dedicated test network where this adjacent
+address is unused. Automatic parsing expects English Windows `ipconfig` output.
+The detected adapter and addresses are printed before the test. QTP starts the PC server,
+checks target link, adds the board address if absent, pings the PC, and runs
+TCP iperf3 bound to the selected interface. Target tools required: `ip`
+(with JSON support), `ping`, and iperf3 with `--bind-dev` support.
+
+Windows Firewall profiles are temporarily disabled during the test and their
+original states restored afterward, including on errors or Ctrl+C. The PC
+server is stopped and any added board address removed. Pre-existing IPs are
+preserved. Linux host firewall configuration is manual (TCP 5201 and ICMP).
+No firewall changes are made merely by starting QTP or editing the project.
+
+PASS requires link, ping, and a successful iperf3 run with receiver throughput
+above `ETH_MIN_MBPS` (default 0: connectivity/throughput validation, not a rated
+speed certification). Streamed results and cleanup messages are saved in the
+host log. Hardware validation is pending.
+
+Host logs are saved under `test_log/` relative to the host working directory.
+Use `--report-dir` to change the output directory.
