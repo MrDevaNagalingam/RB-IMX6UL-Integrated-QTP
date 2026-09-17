@@ -1,0 +1,534 @@
+
+================================================================================
+QTP TEST EXECUTION LOG
+================================================================================
+Session Started: 2026-09-17 16:14:08
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #1: TC-01 Boot mode
+Command: TEST_BOOT_MODE
+Started: 2026-09-17 16:14:14
+--------------------------------------------------------------------------------
+
+Result: PASS
+Details: Status   : PASS
+Board       : PHYTEC phyCORE-i.MX8M Plus Bosch Gateway
+SRC_SBMR2   : 0x30390070
+SRC_SBMR2 value : 0x03050009
+X_BOOT_MODE3    : 0
+X_BOOT_MODE2    : 0
+X_BOOT_MODE1    : 1
+X_BOOT_MODE0    : 1
+BOOT_MODE[3:0]  : 0011
+Boot Mode       : 3 (0x3)
+Boot Source     : Boot from external SD card SD2
+Working as Expected: YES
+Completed: 2026-09-17 16:14:18
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #2: TC-02 UART1 Debug Console
+Command: TEST_UART1_DEBUG_CONSOLE
+Started: 2026-09-17 16:14:19
+--------------------------------------------------------------------------------
+
+Result: ABORTED
+Details: UART1 is used for the debug console. UART1 test aborted.
+Working as Expected: YES
+Completed: 2026-09-17 16:14:21
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #3: TC-03 Reset Switch (S1)
+Command: TEST_RESET_SWITCH
+Started: 2026-09-17 16:14:22
+--------------------------------------------------------------------------------
+
+Result: PASS
+Details: Press reset button S1. Observe the debug console and wait for the board to complete the cold-start boot sequence.
+Operator reported reset test: PASS.
+Working as Expected: YES
+Completed: 2026-09-17 16:14:23
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #4: TC-04 SD Card Write/ Read / Delete
+Command: TEST_SD_CARD_RW_DELETE
+Started: 2026-09-17 16:14:29
+--------------------------------------------------------------------------------
+
+Result: PASS
+Details: Device: /dev/mmcblk1p5 | File size: 10485760 bytes | Iterations: 5
+Mount point: /mnt/sd_test
+ITERATION 1/5
+Write SHA256: ...56f813 | Time: 1.23 sec
+Read SHA256: ...56f813 | Bytes: 10485760 | Time: 0.03 sec
+Data verify: PASS
+Delete: PASS
+ITERATION 1: PASS
+
+ITERATION 2/5
+Write SHA256: ...eaa0a9 | Time: 1.19 sec
+Read SHA256: ...eaa0a9 | Bytes: 10485760 | Time: 0.03 sec
+Data verify: PASS
+Delete: PASS
+ITERATION 2: PASS
+
+ITERATION 3/5
+Write SHA256: ...4f0495 | Time: 1.20 sec
+Read SHA256: ...4f0495 | Bytes: 10485760 | Time: 0.03 sec
+Data verify: PASS
+Delete: PASS
+ITERATION 3: PASS
+
+ITERATION 4/5
+Write SHA256: ...10eb85 | Time: 1.21 sec
+Read SHA256: ...10eb85 | Bytes: 10485760 | Time: 0.03 sec
+Data verify: PASS
+Delete: PASS
+ITERATION 4: PASS
+
+ITERATION 5/5
+Write SHA256: ...61fcd6 | Time: 0.66 sec
+Read SHA256: ...61fcd6 | Bytes: 10485760 | Time: 0.03 sec
+Data verify: PASS
+Delete: PASS
+ITERATION 5: PASS
+
+SD card test: PASS | Passed: 5/5
+Log file Location: /qtp_log/sd_card.txt
+Working as Expected: YES
+Completed: 2026-09-17 16:14:37
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #5: TC-05 Indication LED1 Pin no.(GPIO2_IO06)
+Command: TEST_LED1
+Started: 2026-09-17 16:14:38
+--------------------------------------------------------------------------------
+
+Result: PASS
+Details: Status   : PASS
+Working as Expected: YES
+Completed: 2026-09-17 16:14:44
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #6: TC-05 Indication LED2 Pin no.(GPIO2_IO07)
+Command: TEST_LED2
+Started: 2026-09-17 16:14:45
+--------------------------------------------------------------------------------
+
+Result: PASS
+Details: Status   : PASS
+Working as Expected: YES
+Completed: 2026-09-17 16:14:50
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #7: TC-05 Indication LED3 Pin no.(GPIO2_IO08)
+Command: TEST_LED3
+Started: 2026-09-17 16:14:51
+--------------------------------------------------------------------------------
+
+Result: PASS
+Details: Status   : PASS
+Working as Expected: YES
+Completed: 2026-09-17 16:14:57
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #8: TC-05 Indication LED4 Pin no.(GPIO2_IO09)
+Command: TEST_LED4
+Started: 2026-09-17 16:14:57
+--------------------------------------------------------------------------------
+
+Result: PASS
+Details: Status   : PASS
+Working as Expected: YES
+Completed: 2026-09-17 16:15:03
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #9: TC-06 Ethernet0 throughput test pin no.(X8)
+Command: TEST_ETHERNET0
+Started: 2026-09-17 16:15:41
+--------------------------------------------------------------------------------
+
+Result: PASS
+Details: [HOST] Preparing Ethernet0 / X8 over UART before PC IP detection.
+[TARGET] ifconfig eth1 0.0.0.0 down
+[TARGET] ifconfig eth0 up
+[HOST] Waiting up to 30 seconds for PC Ethernet IPv4...
+[HOST] Network detected using ipconfig
+  Adapter           : Ethernet adapter Ethernet
+  PC IPv4           : 192.168.11.31
+  Board test IPv4    : 192.168.11.32/24
+  Default Gateway   : 192.168.11.1
+
+==============================================================
+  ETHERNET THROUGHPUT TEST START
+==============================================================
+  [TEST CASE] TC-06 : Ethernet0 Throughput | Connector X8
+--------------------------------------------------------------
+  [STEP-1] Board Power ON
+  System Boot Status : Operator to confirm; UART response checked during test
+--------------------------------------------------------------
+  [STEP-2] iPerf Server Initialization (PC Side)
+[HOST] Accept the Windows UAC prompt for temporary firewall setup.
+[HOST] Windows Firewall temporarily disabled.
+  Command Executed  : iperf3 -s -B 192.168.11.31 -p 5201
+  Launched Via      : QTP host process
+  Server Status     : RUNNING (PID 16696)
+--------------------------------------------------------------
+  [STEP-3] Ethernet PHY / Interface Detection
+  Interface         : eth0
+  Connector         : X8
+  Status            : PASS
+--------------------------------------------------------------
+  [STEP-4] Ethernet Interface Status Check
+  Command           : ip link show dev eth0
+  Link Status       : ACTIVE
+  Status            : PASS
+--------------------------------------------------------------
+  [STEP-5] Network Configuration
+  Assigned IP Address : 192.168.11.32/24
+  PC IP Address       : 192.168.11.31
+  Ping Status         : PASS
+  Status              : PASS
+--------------------------------------------------------------
+  [STEP-6] iPerf Client Execution (i.MX8M Plus)
+  Command Executed  : iperf3 -c 192.168.11.31 -p 5201 -t 60 -i 10 -B 192.168.11.32 --bind-dev eth0 --forceflush -f m
+  Test Duration     : 60 seconds
+--------------------------------------------------------------
+  [INFO] Throughput Monitoring Started
+2026-09-17 16:16:08 | TC-06 | ETH0 | Interval 0.00-10.01 sec | Transfer: 113 MBytes | Bandwidth: 94.4 Mbits/sec | PASS
+2026-09-17 16:16:18 | TC-06 | ETH0 | Interval 10.01-20.01 sec | Transfer: 112 MBytes | Bandwidth: 94.3 Mbits/sec | PASS
+2026-09-17 16:16:28 | TC-06 | ETH0 | Interval 20.01-30.01 sec | Transfer: 112 MBytes | Bandwidth: 94.2 Mbits/sec | PASS
+2026-09-17 16:16:38 | TC-06 | ETH0 | Interval 30.01-40.01 sec | Transfer: 112 MBytes | Bandwidth: 94.1 Mbits/sec | PASS
+2026-09-17 16:16:48 | TC-06 | ETH0 | Interval 40.01-50.01 sec | Transfer: 112 MBytes | Bandwidth: 94.2 Mbits/sec | PASS
+2026-09-17 16:16:58 | TC-06 | ETH0 | Interval 50.01-60.01 sec | Transfer: 112 MBytes | Bandwidth: 94.0 Mbits/sec | PASS
+[HOST] Accept the Windows UAC prompt to restore the original firewall settings.
+[HOST] Original Windows Firewall settings restored.
+
+--------------------------------------------------------------
+  [FINAL RESULT SUMMARY]
+--------------------------------------------------------------
+  Test Duration Completed : 60.03 seconds
+  Samples Collected       : 6
+  Total Data Transferred  : 671 MBytes
+  Average Throughput      : 93.7 Mbits/sec
+  Min Throughput          : 94.0 Mbits/sec
+  Threshold               : 0 Mbits/sec
+  Packet Loss             : N/A (TCP test)
+  Test Completion         : SUCCESS
+--------------------------------------------------------------
+  [RESULT] Test Status : PASS
+  [RESULT] eth0 throughput: 93.70 Mbit/s | Duration: 60 sec
+==============================================================
+  ETHERNET THROUGHPUT TEST END
+==============================================================
+
+eth0 throughput: 93.70 Mbit/s | Duration: 60 sec
+Working as Expected: YES
+Completed: 2026-09-17 16:17:18
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #10: TC-06 Ethernet1 throughput test pin no.(X9)
+Command: TEST_ETHERNET1
+Started: 2026-09-17 16:17:27
+--------------------------------------------------------------------------------
+
+Result: PASS
+Details: [HOST] Preparing Ethernet1 / X9 over UART before PC IP detection.
+[TARGET] ifconfig eth0 0.0.0.0 down
+[TARGET] ifconfig eth1 up
+[HOST] Waiting up to 30 seconds for PC Ethernet IPv4...
+[HOST] Network detected using ipconfig
+  Adapter           : Ethernet adapter Ethernet
+  PC IPv4           : 192.168.11.31
+  Board test IPv4    : 192.168.11.32/24
+  Default Gateway   : 192.168.11.1
+
+==============================================================
+  ETHERNET THROUGHPUT TEST START
+==============================================================
+  [TEST CASE] TC-06 : Ethernet1 Throughput | Connector X9
+--------------------------------------------------------------
+  [STEP-1] Board Power ON
+  System Boot Status : Operator to confirm; UART response checked during test
+--------------------------------------------------------------
+  [STEP-2] iPerf Server Initialization (PC Side)
+[HOST] Accept the Windows UAC prompt for temporary firewall setup.
+[HOST] Windows Firewall temporarily disabled.
+  Command Executed  : iperf3 -s -B 192.168.11.31 -p 5201
+  Launched Via      : QTP host process
+  Server Status     : RUNNING (PID 12604)
+--------------------------------------------------------------
+  [STEP-3] Ethernet PHY / Interface Detection
+  Interface         : eth1
+  Connector         : X9
+  Status            : PASS
+--------------------------------------------------------------
+  [STEP-4] Ethernet Interface Status Check
+  Command           : ip link show dev eth1
+  Link Status       : ACTIVE
+  Status            : PASS
+--------------------------------------------------------------
+  [STEP-5] Network Configuration
+  Assigned IP Address : 192.168.11.32/24
+  PC IP Address       : 192.168.11.31
+  Ping Status         : PASS
+  Status              : PASS
+--------------------------------------------------------------
+  [STEP-6] iPerf Client Execution (i.MX8M Plus)
+  Command Executed  : iperf3 -c 192.168.11.31 -p 5201 -t 60 -i 10 -B 192.168.11.32 --bind-dev eth1 --forceflush -f m
+  Test Duration     : 60 seconds
+--------------------------------------------------------------
+  [INFO] Throughput Monitoring Started
+2026-09-17 16:17:58 | TC-06 | ETH1 | Interval 0.00-10.01 sec | Transfer: 113 MBytes | Bandwidth: 95.0 Mbits/sec | PASS
+2026-09-17 16:18:08 | TC-06 | ETH1 | Interval 10.01-20.01 sec | Transfer: 114 MBytes | Bandwidth: 95.2 Mbits/sec | PASS
+2026-09-17 16:18:18 | TC-06 | ETH1 | Interval 20.01-30.01 sec | Transfer: 112 MBytes | Bandwidth: 93.9 Mbits/sec | PASS
+2026-09-17 16:18:28 | TC-06 | ETH1 | Interval 30.01-40.01 sec | Transfer: 112 MBytes | Bandwidth: 93.7 Mbits/sec | PASS
+2026-09-17 16:18:38 | TC-06 | ETH1 | Interval 40.01-50.01 sec | Transfer: 113 MBytes | Bandwidth: 94.8 Mbits/sec | PASS
+2026-09-17 16:18:48 | TC-06 | ETH1 | Interval 50.01-60.01 sec | Transfer: 112 MBytes | Bandwidth: 93.8 Mbits/sec | PASS
+[HOST] Accept the Windows UAC prompt to restore the original firewall settings.
+[HOST] Original Windows Firewall settings restored.
+
+--------------------------------------------------------------
+  [FINAL RESULT SUMMARY]
+--------------------------------------------------------------
+  Test Duration Completed : 60.04 seconds
+  Samples Collected       : 6
+  Total Data Transferred  : 673 MBytes
+  Average Throughput      : 94.0 Mbits/sec
+  Min Throughput          : 93.7 Mbits/sec
+  Threshold               : 0 Mbits/sec
+  Packet Loss             : N/A (TCP test)
+  Test Completion         : SUCCESS
+--------------------------------------------------------------
+  [RESULT] Test Status : PASS
+  [RESULT] eth1 throughput: 94.00 Mbit/s | Duration: 60 sec
+==============================================================
+  ETHERNET THROUGHPUT TEST END
+==============================================================
+
+eth1 throughput: 94.00 Mbit/s | Duration: 60 sec
+Working as Expected: YES
+Completed: 2026-09-17 16:18:59
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #11: TC-07 CAN0 and CAN1 Loopback test
+Command: TEST_CAN_LOOPBACK
+Started: 2026-09-17 16:19:04
+--------------------------------------------------------------------------------
+
+Result: PASS
+Details: $ ip link set can0 type can bitrate 500000 loopback off listen-only off
+$ ip link set can1 type can bitrate 500000 loopback off listen-only off
+
+can0 -> can1 | Expected: 123#1122334455667788
+$ cansend can0 123#1122334455667788
+Received: can1 123 [8] 11 22 33 44 55 66 77 88 | PASS
+
+can1 -> can0 | Expected: 456#AABBCCDDEEFF0011
+$ cansend can1 456#AABBCCDDEEFF0011
+Received: can0 456 [8] AA BB CC DD EE FF 00 11 | PASS
+CAN0 -> CAN1: PASS | CAN1 -> CAN0: PASS | Bitrate: 500000
+Log file Location: /qtp_log/can_test.txt
+Working as Expected: YES
+Completed: 2026-09-17 16:19:10
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #12: TC-08 HDMI Test case
+Command: TEST_HDMI
+Started: 2026-09-17 16:19:26
+--------------------------------------------------------------------------------
+
+Result: PASS
+Details: Status   : PASS
+fbtest completed; Weston restarted. HDMI visual confirmation required.
+Log file Location: /qtp_log/hdmi.txt
+Working as Expected: YES
+Completed: 2026-09-17 16:20:09
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #13: TC-09 USB Bluetooth (USB1, USB2)
+Command: TEST_USB_BLUETOOTH
+Started: 2026-09-17 16:20:22
+--------------------------------------------------------------------------------
+
+Result: FAIL
+Details: USB Bluetooth: FAIL | Devices observed: 0
+Can't init device hci0: Input/output error (5)
+Cleanup failed: No default controller available
+Log file Location: /qtp_log/usb_bluetooth.txt
+Working as Expected: NO
+Completed: 2026-09-17 16:20:39
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #13: TC-09 USB Bluetooth (USB1, USB2)
+Command: TEST_USB_BLUETOOTH
+Started: 2026-09-17 16:20:40
+--------------------------------------------------------------------------------
+
+Result: FAIL
+Details: USB Bluetooth: FAIL | Devices observed: 0
+Can't init device hci0: Input/output error (5)
+Cleanup failed: No default controller available
+Log file Location: /qtp_log/usb_bluetooth.txt
+Working as Expected: NO
+Completed: 2026-09-17 16:20:53
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #14: TC-10 TPM functionality
+Command: TEST_TPM
+Started: 2026-09-17 16:21:24
+--------------------------------------------------------------------------------
+
+Result: PASS
+Details: TPM functionality: PASS | Random: PASS | RSA encrypt/decrypt: PASS | Data verify: PASS
+Log file Location: /qtp_log/tpm.txt
+Working as Expected: YES
+Completed: 2026-09-17 16:21:52
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #15: TC-11 PCIe controller verify
+Command: TEST_PCIE
+Started: 2026-09-17 16:21:56
+--------------------------------------------------------------------------------
+
+Result: PASS
+Details: PCIe controller: PASS | Device: 00:00.0 | Driver: pcieport
+Log file Location: /qtp_log/pcie.txt
+Working as Expected: YES
+Completed: 2026-09-17 16:21:59
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #13: TC-09 USB Bluetooth (USB1, USB2)
+Command: TEST_USB_BLUETOOTH
+Started: 2026-09-17 16:23:49
+--------------------------------------------------------------------------------
+
+Result: FAIL
+Details: USB Bluetooth: FAIL | Devices observed: 0
+Configured Bluetooth controller was not registered with BlueZ
+Cleanup failed: No default controller available
+Log file Location: /qtp_log/usb_bluetooth.txt
+Working as Expected: NO
+Completed: 2026-09-17 16:24:14
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TEST #13: TC-09 USB Bluetooth (USB1, USB2)
+Command: TEST_USB_BLUETOOTH
+Started: 2026-09-17 16:24:26
+--------------------------------------------------------------------------------
+
+Result: PASS
+Details: USB Bluetooth: PASS | Devices observed: 32
+Log file Location: /qtp_log/usb_bluetooth.txt
+Working as Expected: YES
+Completed: 2026-09-17 16:24:53
+================================================================================
+
+
+================================================================================
+TEST EXECUTION SUMMARY
+================================================================================
+Session Completed: 2026-09-17 16:24:55
+
+STATISTICS:
+-----------
+Total Tests Executed: 18
+Passed: 14
+Failed: 3
+Skipped: 0
+Aborted: 1
+
+Pass Rate: 77.78%
+
+DETAILED RESULTS:
+-----------------
+Test #1: TC-01 Boot mode
+  Status: PASS | Expected: YES
+
+Test #2: TC-02 UART1 Debug Console
+  Status: ABORTED | Expected: YES
+
+Test #3: TC-03 Reset Switch (S1)
+  Status: PASS | Expected: YES
+
+Test #4: TC-04 SD Card Write/ Read / Delete
+  Status: PASS | Expected: YES
+
+Test #5: TC-05 Indication LED1 Pin no.(GPIO2_IO06)
+  Status: PASS | Expected: YES
+
+Test #6: TC-05 Indication LED2 Pin no.(GPIO2_IO07)
+  Status: PASS | Expected: YES
+
+Test #7: TC-05 Indication LED3 Pin no.(GPIO2_IO08)
+  Status: PASS | Expected: YES
+
+Test #8: TC-05 Indication LED4 Pin no.(GPIO2_IO09)
+  Status: PASS | Expected: YES
+
+Test #9: TC-06 Ethernet0 throughput test pin no.(X8)
+  Status: PASS | Expected: YES
+
+Test #10: TC-06 Ethernet1 throughput test pin no.(X9)
+  Status: PASS | Expected: YES
+
+Test #11: TC-07 CAN0 and CAN1 Loopback test
+  Status: PASS | Expected: YES
+
+Test #12: TC-08 HDMI Test case
+  Status: PASS | Expected: YES
+
+Test #13: TC-09 USB Bluetooth (USB1, USB2)
+  Status: FAIL | Expected: NO
+
+Test #13: TC-09 USB Bluetooth (USB1, USB2)
+  Status: FAIL | Expected: NO
+
+Test #14: TC-10 TPM functionality
+  Status: PASS | Expected: YES
+
+Test #15: TC-11 PCIe controller verify
+  Status: PASS | Expected: YES
+
+Test #13: TC-09 USB Bluetooth (USB1, USB2)
+  Status: FAIL | Expected: NO
+
+Test #13: TC-09 USB Bluetooth (USB1, USB2)
+  Status: PASS | Expected: YES
+
+================================================================================
