@@ -58,6 +58,11 @@ class CommandHandler:
     def __init__(self, uart_comm: UARTCommunicator):
         self.uart = uart_comm
         self.commands = {
+            "TEST_TPM": self.test_tpm,
+            "TEST_PCIE": self.test_pcie,
+            "TEST_USB_BLUETOOTH": self.test_usb_bluetooth,
+            "TEST_HDMI": self.test_hdmi,
+            "TEST_CAN_LOOPBACK": self.test_can_loopback,
             "TEST_ETHERNET0": self.test_ethernet0,
             "TEST_ETHERNET1": self.test_ethernet1,
             "TEST_LED1": self.test_led1,
@@ -76,6 +81,21 @@ class CommandHandler:
         answer = {"test_id": command_id, "status": "NOT_IMPLEMENTED",
                   "measurements": {}, "details": "Unsupported host command", "output": ""}
         return answer
+
+    def test_tpm(self, params=None, output_callback=None):
+        return self._run_test("TPM_TEST", params, output_callback)
+
+    def test_pcie(self, params=None, output_callback=None):
+        return self._run_test("PCIE_TEST", params, output_callback)
+
+    def test_usb_bluetooth(self, params=None, output_callback=None):
+        return self._run_test("USB_BLUETOOTH_TEST", params, output_callback)
+
+    def test_hdmi(self, params=None, output_callback=None):
+        return self._run_test("HDMI_TEST", params, output_callback)
+
+    def test_can_loopback(self, params=None, output_callback=None):
+        return self._run_test("CAN_LOOPBACK_TEST", params, output_callback)
 
     def stop_target(self, params=None, output_callback=None):
         """Tell the target QTP server to stop."""

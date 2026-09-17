@@ -4,6 +4,11 @@ import os
 import re
 
 TESTS = {
+    "14": ("TC-10 TPM functionality", "TEST_TPM"),
+    "15": ("TC-11 PCIe controller verify", "TEST_PCIE"),
+    "13": ("TC-09 USB Bluetooth (USB1, USB2)", "TEST_USB_BLUETOOTH"),
+    "11": ("TC-07 CAN0 and CAN1 Loopback test", "TEST_CAN_LOOPBACK"),
+    "12": ("TC-08 HDMI Test case", "TEST_HDMI"),
     "9": ("TC-06 Ethernet0 throughput test pin no.(X8)", "TEST_ETHERNET0"),
     "10": ("TC-06 Ethernet1 throughput test pin no.(X9)", "TEST_ETHERNET1"),
     "5": ("TC-05 Indication LED1 Pin no.(GPIO2_IO06)", "TEST_LED1"),
@@ -17,6 +22,11 @@ TESTS = {
 }
 
 TEST_MESSAGES = {
+    "TEST_TPM": "Checks TPM devices, random generation, and RSA encryption/decryption with data verification.",
+    "TEST_PCIE": "Checks the PCIe bridge and its active kernel driver using lspci -k.",
+    "TEST_USB_BLUETOOTH": "Connect the Bluetooth adapter to the USB port being tested. Make a nearby Bluetooth device discoverable.",
+    "TEST_HDMI": "Connect the HDMI cable to test. Observe the test patterns on the connected display.",
+    "TEST_CAN_LOOPBACK": "Connect CAN0 and CAN1 on a correctly terminated CAN bus. Tests both directions at 500000 bit/s.",
     "TEST_SD_CARD_RW_DELETE": "SD card: five 10 MiB write/read/delete cycles with SHA256 verification.",
     "TEST_BOOT_MODE": "Reads SRC_SBMR2 and decodes BOOT_MODE[3:0].",
     "TEST_UART1_DEBUG_CONSOLE": "UART1 is used for the debug console.",
@@ -184,7 +194,7 @@ def run_single_test(cmd_handler, test_num, logger):
         print("[ERROR] Test #{} not found!".format(test_num))
         return True
     test_desc, test_cmd = TESTS[key]
-    operator_decides_status = test_cmd in ("TEST_LED1", "TEST_LED2", "TEST_LED3", "TEST_LED4")
+    operator_decides_status = test_cmd in ("TEST_LED1", "TEST_LED2", "TEST_LED3", "TEST_LED4", "TEST_HDMI")
     logger.log_test_start(test_num, test_desc, test_cmd)
     if test_cmd in TEST_MESSAGES:
         print("[INFO] {}".format(TEST_MESSAGES[test_cmd]))
@@ -220,18 +230,20 @@ def run_single_test(cmd_handler, test_num, logger):
             print("[RESULT] Status: {}".format(
                 "AWAITING OPERATOR" if operator_decides_status and target_status == "PASS" else target_status))
             print("[RESULT] Details: {}".format(display_details))
-        if test_cmd == "TEST_SD_CARD_RW_DELETE":
+        if test_cmd in ("TEST_SD_CARD_RW_DELETE", "TEST_HDMI", "TEST_CAN_LOOPBACK", "TEST_USB_BLUETOOTH", "TEST_TPM", "TEST_PCIE"):
             log_file = result.get("measurements", {}).get("log_file")
             if log_file:
                 print("\nLog file Location: {}".format(log_file))
                 details += "\nLog file Location: " + log_file
-        if test_cmd == "TEST_SD_CARD_RW_DELETE" and result.get("output"):
+        if test_cmd in ("TEST_SD_CARD_RW_DELETE", "TEST_CAN_LOOPBACK", "TEST_HDMI") and result.get("output"):
             details = result["output"] + "\n" + details
         if test_cmd in ("TEST_ETHERNET0", "TEST_ETHERNET1") and streamed:
             details = "".join(streamed) + "\n" + details
 
         print("\n" + "-" * 80)
-        working_as_expected = confirm_working_as_expected()
+        working_as_expected = confirm_working_as_expected(
+            "After checking the HDMI display, is it working as expected? (YES/NO): "
+            if test_cmd == "TEST_HDMI" else "Is this test working as expected? (y/n): ")
         if operator_decides_status and target_status == "PASS":
             status = "PASS" if working_as_expected else "FAIL"
             details = re.sub(r"^Status\s*:.*$", "Status   : {}".format(status),

@@ -1,4 +1,6 @@
 import hashlib
+import socket
+import struct
 import ipaddress
 import json
 import queue
@@ -168,6 +170,390 @@ def boot_mode_test():
         "boot_source": boot_source,
     }
     return result(test_id, "PASS", details, measurements, devmem_output)
+
+
+def logged_result(test_id, status, details, output, log_file, measurements=None):
+    measurements = dict(measurements or {})
+    try:
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        with open(log_file, "a", encoding="utf-8") as stream:
+            stream.write("\n{} | {}\n{}\nResult: {}\n{}\n".format(
+                time.strftime("%Y-%m-%d %H:%M:%S"), test_id, "\n".join(output), status, details))
+            stream.flush()
+            os.fsync(stream.fileno())
+        measurements["log_file"] = log_file
+    except OSError as exc:
+        status = "FAIL"
+        details = "Status   : FAIL\nUnable to save target log: {}\n{}".format(exc, details)
+    return result(test_id, status, details, measurements)
+
+
+def tpm_test(stream_callback=None):
+    output = []
+    measurements = {}
+
+    def emit(text):
+        output.append(text)
+
+    try:
+        for device in config.TPM_DEVICES:
+            if not stat.S_ISCHR(os.stat(device).st_mode):
+                raise RuntimeError("Not a TPM character device: " + device)
+        emit("[TPM] Devices detected: " + ", ".join(config.TPM_DEVICES))
+        # The kernel resource manager releases each tool's transient handles.
+        env = dict(os.environ, TPM2TOOLS_TCTI=config.TPM_TCTI)
+        with tempfile.TemporaryDirectory(prefix="qtp_tpm_") as directory:
+            def command(args):
+                emit("[TPM] Running: " + " ".join(args))
+                completed = subprocess.run(args, cwd=directory, env=env,
+                                           capture_output=True, text=True, errors="replace",
+                                           timeout=config.TPM_COMMAND_TIMEOUT)
+                output.extend([completed.stdout.strip(), completed.stderr.strip()])
+                if completed.returncode:
+                    raise RuntimeError("{} failed: {}".format(
+                        args[0], completed.stderr.strip() or completed.stdout.strip()
+                        or "exit code " + str(completed.returncode)))
+                return completed.stdout.strip()
+
+            random_hex = command(["tpm2_getrandom", "--hex", str(config.TPM_RANDOM_BYTES)])
+            if re.fullmatch(r"[0-9a-fA-F]{" + str(config.TPM_RANDOM_BYTES * 2) + "}", random_hex) is None:
+                raise RuntimeError("TPM random output has invalid length or format")
+            measurements["random_bytes"] = config.TPM_RANDOM_BYTES
+            emit("[TPM] Random data: PASS ({} bytes)".format(config.TPM_RANDOM_BYTES))
+            command(["tpm2_createprimary", "-C", "o", "-g", "sha256", "-G", "rsa", "-c", "primary.ctx"])
+            command(["tpm2_create", "-C", "primary.ctx", "-g", "sha256", "-G", "rsa",
+                     "-u", "key.pub", "-r", "key.priv"])
+            command(["tpm2_load", "-C", "primary.ctx", "-u", "key.pub", "-r", "key.priv", "-c", "key.ctx"])
+            plaintext = config.TPM_TEST_TEXT.encode("utf-8")
+            plain_path = os.path.join(directory, "plaintext.txt")
+            with open(plain_path, "wb") as stream:
+                stream.write(plaintext)
+            command(["tpm2_rsaencrypt", "-c", "key.ctx", "-o", "ciphertext.bin", "plaintext.txt"])
+            with open(os.path.join(directory, "ciphertext.bin"), "rb") as stream:
+                ciphertext = stream.read()
+            if not ciphertext or ciphertext == plaintext:
+                raise RuntimeError("RSA encryption did not produce ciphertext")
+            output.append("Ciphertext (hex): " + ciphertext.hex())
+            os.remove(plain_path)
+            command(["tpm2_rsadecrypt", "-c", "key.ctx", "-o", "decrypted.txt", "ciphertext.bin"])
+            with open(os.path.join(directory, "decrypted.txt"), "rb") as stream:
+                decrypted = stream.read()
+            if decrypted != plaintext:
+                raise RuntimeError("Decrypted data does not match the original plaintext")
+            measurements["round_trip_verified"] = True
+            emit("[TPM] RSA encrypt/decrypt data verification: PASS")
+        status = "PASS"
+        details = "TPM functionality: PASS | Random: PASS | RSA encrypt/decrypt: PASS | Data verify: PASS"
+    except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+        status = "FAIL"
+        details = "TPM functionality: FAIL | " + str(exc)
+        output.append(details)
+    return logged_result("TPM_TEST", status, details, output, config.TPM_LOG_FILE, measurements)
+
+
+def pcie_test(stream_callback=None):
+    output = ["$ lspci -k"]
+    measurements = {}
+    try:
+        completed = subprocess.run(["lspci", "-k"], capture_output=True, text=True,
+                                   errors="replace", timeout=config.PCIE_COMMAND_TIMEOUT)
+        output.extend([completed.stdout.strip(), completed.stderr.strip()])
+        if completed.returncode:
+            raise RuntimeError("lspci failed: " + (completed.stderr.strip()
+                               or "exit code " + str(completed.returncode)))
+        blocks = re.split(r"(?m)(?=^\S)", completed.stdout)
+        device = next((block for block in blocks
+                       if block.startswith(config.PCIE_DEVICE + " ")
+                       or block.startswith("0000:" + config.PCIE_DEVICE + " ")), "")
+        header = device.splitlines()[0] if device else ""
+        if "PCI bridge:" not in header or config.PCIE_VENDOR not in header:
+            raise RuntimeError("Expected PCIe bridge not found at " + config.PCIE_DEVICE)
+        driver = re.search(r"Kernel driver in use:\s*(\S+)", device)
+        if driver is None or driver.group(1) != config.PCIE_DRIVER:
+            raise RuntimeError("Expected active driver {} on {}".format(config.PCIE_DRIVER, config.PCIE_DEVICE))
+        measurements = {"device": config.PCIE_DEVICE, "driver": driver.group(1)}
+        status = "PASS"
+        details = "PCIe controller: PASS | Device: {} | Driver: {}".format(config.PCIE_DEVICE, driver.group(1))
+    except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+        status = "FAIL"
+        details = "PCIe controller: FAIL | " + str(exc)
+        output.append(details)
+    return logged_result("PCIE_TEST", status, details, output, config.PCIE_LOG_FILE, measurements)
+
+
+def usb_bluetooth_test(params=None, stream_callback=None):
+    output = []
+    errors = []
+    devices = []
+    powered = False
+
+    def command(args, timeout=15):
+        output.append("$ " + " ".join(args))
+        if stream_callback:
+            stream_callback("[BT] Running: " + " ".join(args) + "\n")
+        completed = subprocess.run(args, capture_output=True, text=True, errors="replace", timeout=timeout)
+        text = (completed.stdout or "") + (completed.stderr or "")
+        text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+        output.append(text.strip())
+        if completed.returncode or re.search(r"Failed|not available|No default controller", text, re.I):
+            raise RuntimeError(text.strip() or "Command failed: " + " ".join(args))
+        return text
+
+    try:
+        usb = command(["lsusb"])
+        if config.BT_USB_ID.lower() not in usb.lower():
+            raise RuntimeError("Expected USB Bluetooth adapter {} not found".format(config.BT_USB_ID))
+        command(["systemctl", "start", config.BT_SERVICE])
+        powered = True
+        command(["hciconfig", config.BT_HCI, "up"])
+        hci = command(["hciconfig", config.BT_HCI, "-a"])
+        address = re.search(r"BD Address:\s*([0-9A-F:]{17})", hci, re.I)
+        if "Bus: USB" not in hci or not address:
+            raise RuntimeError("Configured HCI is not a USB Bluetooth controller")
+        process = subprocess.Popen(["bluetoothctl"], stdin=subprocess.PIPE,
+                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                   text=True, errors="replace", bufsize=1)
+        pending = queue.Queue()
+        scan_lines = []
+
+        def read_session():
+            try:
+                for line in process.stdout:
+                    pending.put(line)
+            finally:
+                pending.put(None)
+
+        reader = threading.Thread(target=read_session, daemon=True)
+        reader.start()
+
+        def send(text):
+            output.append("[bluetoothctl] " + text)
+            if stream_callback:
+                stream_callback("[BT] " + text + "\n")
+            process.stdin.write(text + "\n")
+            process.stdin.flush()
+
+        def receive(wait=0.25, scanning=False):
+            try:
+                raw = pending.get(timeout=wait)
+            except queue.Empty:
+                return ""
+            if raw is None:
+                raise RuntimeError("bluetoothctl session exited unexpectedly")
+            line = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", raw).strip()
+            if line:
+                output.append(line)
+                if scanning:
+                    scan_lines.append(line)
+                if stream_callback and (scanning or "Device " in line):
+                    stream_callback(line + "\n")
+            return line
+
+        def expect(text, pattern, scanning=False):
+            send(text)
+            deadline = time.monotonic() + config.BT_CONTROLLER_TIMEOUT
+            while time.monotonic() < deadline:
+                line = receive(scanning=scanning)
+                if re.search(pattern, line, re.I):
+                    return
+                if re.search(r"Failed|not available|No default controller", line, re.I):
+                    raise RuntimeError(text + ": " + line)
+            raise RuntimeError("No confirmation for bluetoothctl " + text)
+
+        scanning = False
+        try:
+            # Keep one client alive while BlueZ discovers its controllers.
+            deadline = time.monotonic() + config.BT_CONTROLLER_TIMEOUT
+            ready = False
+            while time.monotonic() < deadline and not ready:
+                send("list")
+                poll_until = min(deadline, time.monotonic() + 1)
+                while time.monotonic() < poll_until:
+                    line = receive()
+                    if re.search(r"Controller\s+" + re.escape(address[1]), line, re.I):
+                        ready = True
+                        break
+            if not ready:
+                raise RuntimeError("Configured Bluetooth controller was not registered with BlueZ")
+            # BlueZ silently succeeds when this controller is already selected.
+            send("select " + address[1])
+            expect("show", r"Controller\s+" + re.escape(address[1]) + r"(?:\s+\((?:public|random)\))?\s*$")
+            expect("power on", r"Changing power on succeeded|Powered:\s*yes")
+            expect("agent on", r"Agent registered|Agent is already registered")
+            expect("default-agent", r"Default agent request successful")
+            scanning = True
+            expect("scan on", r"Discovery started|Discovering:\s*yes", scanning=True)
+            deadline = time.monotonic() + config.BT_SCAN_SECONDS
+            while time.monotonic() < deadline:
+                line = receive(scanning=True)
+                if re.search(r"Failed to start discovery|Discovery stopped", line, re.I):
+                    raise RuntimeError("Discovery stopped before the scan completed")
+            expect("scan off", r"Discovery stopped|Discovering:\s*no")
+            scanning = False
+            devices = sorted(set(re.findall(
+                r"\[(?:NEW|CHG)\]\s+Device\s+([0-9A-F:]{17})", "\n".join(scan_lines), re.I)))
+        finally:
+            try:
+                if process.poll() is None:
+                    if scanning:
+                        send("scan off")
+                    send("quit")
+                    process.wait(timeout=5)
+            except (OSError, subprocess.TimeoutExpired):
+                process.kill()
+                process.wait()
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+                reader.join(timeout=5)
+                process.stdin.close()
+                process.stdout.close()
+        if not devices:
+            raise RuntimeError("No devices observed during this scan. Enable discovery on a nearby device and retry.")
+    except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+        errors.append(str(exc))
+    finally:
+        if powered:
+            # Exiting the persistent bluetoothctl client releases discovery and its agent.
+            for args in (["bluetoothctl", "power", "off"], ["hciconfig", config.BT_HCI, "down"]):
+                try:
+                    command(args)
+                except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+                    errors.append("Cleanup failed: " + str(exc))
+    status = "FAIL" if errors else "PASS"
+    details = "USB Bluetooth: {} | Devices observed: {}".format(status, len(devices))
+    if errors:
+        details += "\n" + "\n".join(errors)
+    return logged_result("USB_BLUETOOTH_TEST", status, details, output, config.BT_LOG_FILE,
+                         {"controller": config.BT_HCI, "devices": devices})
+
+
+def hdmi_test(stream_callback=None):
+    output = []
+    errors = []
+    stopped = False
+    socket_active = False
+
+    def emit(message):
+        output.append(message)
+
+    def command(args, timeout=20):
+        emit("$ " + " ".join(args))
+        completed = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
+        for text in (completed.stdout, completed.stderr):
+            if text and text.strip():
+                emit(text.strip())
+        if completed.returncode:
+            raise RuntimeError("Command failed: " + " ".join(args))
+        return completed.stdout
+
+    try:
+        check = subprocess.run(["systemctl", "is-active", config.HDMI_WESTON_SOCKET],
+                               capture_output=True, text=True, timeout=20)
+        socket_active = check.returncode == 0
+        # Prevent socket activation from restarting Weston while fbtest owns the display.
+        stopped = True
+        if socket_active:
+            command(["systemctl", "stop", config.HDMI_WESTON_SOCKET])
+        command(["systemctl", "stop", config.HDMI_WESTON_SERVICE])
+        emit("Observe the HDMI display while fbtest runs.")
+        text = command(["fbtest"], timeout=config.HDMI_FBTEST_TIMEOUT)
+        if re.search(r"\bFAILED\b", text, re.IGNORECASE):
+            raise RuntimeError("fbtest reported a failed test")
+    except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+        errors.append(str(exc))
+    finally:
+        if stopped:
+            units = ([config.HDMI_WESTON_SOCKET] if socket_active else []) + [config.HDMI_WESTON_SERVICE]
+            for unit in units:
+                try:
+                    command(["systemctl", "start", unit])
+                except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+                    errors.append("Weston restart failed: " + str(exc))
+    status = "FAIL" if errors else "PASS"
+    details = "Status   : {}\n{}".format(status, "\n".join(errors) if errors else
+        "fbtest completed; Weston restarted. HDMI visual confirmation required.")
+    return logged_result("HDMI_TEST", status, details, output, config.HDMI_LOG_FILE)
+
+
+def can_loopback_test(stream_callback=None):
+    output = []
+    host_output = []
+    directions = []
+
+    def emit(message, quiet=False):
+        output.append(message)
+        if not quiet:
+            host_output.append(message)
+            if stream_callback:
+                stream_callback(message + "\n")
+
+    def command(args, quiet=False):
+        emit("$ " + " ".join(args), quiet=quiet)
+        completed = subprocess.run(args, capture_output=True, text=True, timeout=10)
+        if completed.returncode:
+            raise RuntimeError(completed.stderr.strip() or completed.stdout.strip() or "CAN command failed")
+        if completed.stdout.strip():
+            emit(completed.stdout.strip(), quiet=quiet)
+
+    status = "FAIL"
+    try:
+        for interface in config.CAN_INTERFACES:
+            command(["ip", "link", "set", interface, "down"], quiet=True)
+        for interface in config.CAN_INTERFACES:
+            command(["ip", "link", "set", interface, "type", "can", "bitrate",
+                     str(config.CAN_BITRATE), "loopback", "off", "listen-only", "off"])
+        for interface in config.CAN_INTERFACES:
+            command(["ip", "link", "set", interface, "up"], quiet=True)
+        for interface in config.CAN_INTERFACES:
+            command(["ip", "-details", "link", "show", interface], quiet=True)
+
+        for index, frame in enumerate(config.CAN_TEST_FRAMES):
+            source = config.CAN_INTERFACES[index]
+            destination = config.CAN_INTERFACES[1 - index]
+            frame_id, payload = frame.split("#")
+            expected_id = int(frame_id, 16)
+            expected_data = bytes.fromhex(payload)
+            emit("\n{} -> {} | Expected: {}".format(source, destination, frame))
+            # Bind before transmitting; receive only the requested standard data ID.
+            with socket.socket(socket.AF_CAN, socket.SOCK_RAW, socket.CAN_RAW) as receiver:
+                # CAN_ERR_FLAG in the mask selects error frames, not data frames.
+                receiver.setsockopt(socket.SOL_CAN_RAW, socket.CAN_RAW_FILTER,
+                                    struct.pack("=II", expected_id, 0xC00007FF))
+                receiver.bind((destination,))
+                command(["cansend", source, frame])
+                deadline = time.monotonic() + config.CAN_RX_TIMEOUT
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise RuntimeError("Timeout waiting for {} on {}".format(frame, destination))
+                    receiver.settimeout(remaining)
+                    try:
+                        packet = receiver.recv(16)
+                    except socket.timeout as exc:
+                        raise RuntimeError("Timeout waiting for {} on {}".format(frame, destination)) from exc
+                    if len(packet) != 16:
+                        continue
+                    received_id, size, data = struct.unpack("=IB3x8s", packet)
+                    if received_id != expected_id:
+                        continue
+                    if size != len(expected_data) or data[:size] != expected_data:
+                        raise RuntimeError("CAN payload mismatch on {}: {}#{}, length {}".format(
+                            destination, frame_id, data[:size].hex().upper(), size))
+                    break
+            emit("Received: {} {} [{}] {} | PASS".format(
+                destination, frame_id, size, " ".join("{:02X}".format(b) for b in data[:size])))
+            directions.append({"source": source, "destination": destination, "frame": frame, "status": "PASS"})
+        status = "PASS"
+        details = "CAN0 -> CAN1: PASS | CAN1 -> CAN0: PASS | Bitrate: {}".format(config.CAN_BITRATE)
+    except (OSError, RuntimeError, ValueError, AttributeError, subprocess.TimeoutExpired) as exc:
+        details = "CAN loopback failed: " + str(exc)
+        emit(details)
+    answer = logged_result("CAN_LOOPBACK_TEST", status, details, output, config.CAN_LOG_FILE,
+                           {"bitrate": config.CAN_BITRATE, "directions": directions})
+    answer["output"] = "\n".join(host_output)
+    return answer
 
 
 def prepare_ethernet(index, stream_callback=None):

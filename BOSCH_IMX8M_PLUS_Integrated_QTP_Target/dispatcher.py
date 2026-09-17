@@ -7,6 +7,11 @@ import config
 import tests
 
 COMMANDS = {
+    "TPM_TEST": lambda stream_callback=None, params=None: tests.tpm_test(stream_callback),
+    "PCIE_TEST": lambda stream_callback=None, params=None: tests.pcie_test(stream_callback),
+    "USB_BLUETOOTH_TEST": lambda stream_callback=None, params=None: tests.usb_bluetooth_test(params, stream_callback),
+    "HDMI_TEST": lambda stream_callback=None, params=None: tests.hdmi_test(stream_callback),
+    "CAN_LOOPBACK_TEST": lambda stream_callback=None, params=None: tests.can_loopback_test(stream_callback),
     "ETHERNET0_PREPARE": lambda stream_callback=None, params=None: tests.prepare_ethernet(0, stream_callback),
     "ETHERNET1_PREPARE": lambda stream_callback=None, params=None: tests.prepare_ethernet(1, stream_callback),
     "ETHERNET0_TEST": lambda stream_callback=None, params=None: tests.ethernet_throughput_test(0, params, stream_callback),

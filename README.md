@@ -68,6 +68,11 @@ as `/dev/ttyUSB0`.
 8. TC-05 Indication LED4 Pin no.(GPIO2_IO09)
 9. TC-06 Ethernet0 throughput test pin no.(X8)
 10. TC-06 Ethernet1 throughput test pin no.(X9)
+11. TC-07 CAN0 and CAN1 Loopback test
+12. TC-08 HDMI Test case
+13. TC-09 USB Bluetooth (USB1, USB2)
+14. TC-10 TPM functionality
+15. TC-11 PCIe controller verify
 q. Quit
 ```
 
@@ -181,6 +186,71 @@ PASS requires link, ping, and a successful iperf3 run with receiver throughput
 above `ETH_MIN_MBPS` (default 0: connectivity/throughput validation, not a rated
 speed certification). Streamed results and cleanup messages are saved in the
 host log. Hardware validation is pending.
+
+## TC-07 CAN0 and CAN1 Loopback
+
+Option 11 configures both CAN interfaces at 500000 bit/s, brings them up,
+and displays `ip -details link show` output. Connect CAN0 and CAN1 physically
+on a correctly terminated bus before testing. This is an external bidirectional
+test, not controller-internal loopback. Loopback and listen-only modes are disabled.
+
+The target sends `123#1122334455667788` from can0 and verifies reception on
+can1, then sends `456#AABBCCDDEEFF0011` from can1 and verifies reception on
+can0. SocketCAN receivers are bound before each `cansend`; both frame IDs,
+lengths, and complete payloads must match for PASS. Reception times out after
+five seconds per direction. Interfaces remain configured and up after testing.
+
+Requires root, `ip`, `cansend` (can-utils), and Python SocketCAN support on
+the target. CAN settings are in `config.py`; implementation is in `tests.py`.
+Progress and results are saved in the host log. Hardware validation is pending.
+
+## TC-08 HDMI
+
+Option 12 stops the active Weston socket and Weston service, runs `fbtest`,
+then restarts the socket if previously active and starts Weston. Restart is
+also attempted after failure or timeout. Observe the HDMI display during the
+test, then answer YES/NO on the host. YES records PASS after successful command
+execution; NO records FAIL. Command failures remain FAIL regardless of the answer.
+Requires root, systemctl, and fbtest. Settings are in target `config.py`.
+
+## TC-09 USB Bluetooth
+
+Option 13 checks `lsusb` for the configured adapter (`0cf3:e500`), verifies
+the USB HCI controller (`hci0`), starts BlueZ, and brings HCI up. A persistent
+`bluetoothctl` session polls for the controller, selects its address, then runs
+`power on`, `agent on`, `default-agent`, `scan on`, and `scan off` after 15 seconds.
+Device messages stream to the host. At least one device must be observed in
+the current scan for PASS. Cleanup exits the session, powers Bluetooth off,
+and takes HCI down. No pairing is performed.
+
+There is no USB port selection prompt; the connected configured controller is
+tested. The physical connector is not automatically verified. Repeat in the other connector
+to validate both ports. Enable discovery/advertising on a nearby device.
+Requires root, lsusb, hciconfig, bluetoothctl and a running BlueZ service.
+Configuration is in target `config.py`; full output is appended to
+`/qtp_log/usb_bluetooth.txt`. Hardware validation is pending.
+
+## TC-10 TPM Functionality
+
+Option 14 verifies /dev/tpm0 and /dev/tpmrm0, requests 16 random bytes, creates
+an owner primary and RSA key, loads the key, and encrypts test plaintext.
+The plaintext file is removed before decryption; recovered bytes must match
+the original for PASS. All generated files are isolated in a temporary directory
+and removed afterward. No TPM clear, persistent-key changes, or global handle
+flush is performed. Tools use the kernel resource manager via
+`TPM2TOOLS_TCTI=device:/dev/tpmrm0`.
+Requires tpm2_getrandom, tpm2_createprimary, tpm2_create, tpm2_load,
+tpm2_rsaencrypt and tpm2_rsadecrypt. Each command has a 60-second timeout;
+the host polls for the final result. Full output: /qtp_log/tpm.txt.
+Settings are in target config.py. Hardware validation is pending.
+
+## TC-11 PCIe Controller
+
+Option 15 runs lspci -k and requires the configured Synopsys PCI bridge at
+00:00.0 with kernel driver pcieport on that same device. This verifies controller
+enumeration and driver binding, not endpoint connectivity or throughput.
+Settings are in target config.py. Full output: /qtp_log/pcie.txt.
+Hardware validation is pending.
 
 Host logs are saved under `test_log/` relative to the host working directory.
 Use `--report-dir` to change the output directory.

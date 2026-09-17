@@ -124,9 +124,14 @@ class UARTCommunicator:
         deadline = time.monotonic() + 150 if command in ("ETHERNET0_TEST", "ETHERNET1_TEST") else None
         if command in ("ETHERNET0_PREPARE", "ETHERNET1_PREPARE"):
             deadline = time.monotonic() + 40
+        if command == "CAN_LOOPBACK_TEST":
+            deadline = time.monotonic() + 120
+        if command == "HDMI_TEST":
+            deadline = time.monotonic() + 240
+        # Bluetooth polls until the target completes or the operator interrupts.
         while True:
             if deadline is not None and time.monotonic() >= deadline:
-                raise TimeoutError("Ethernet test: target response timed out")
+                raise TimeoutError("{}: target response timed out".format(command))
             response = self.reader.read(1)
             if response is not None and response.get(3) == request_id and 4 in response:
                 if output_callback is not None:

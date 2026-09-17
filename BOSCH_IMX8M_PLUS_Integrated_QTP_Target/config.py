@@ -10,6 +10,36 @@ X_UART3 = "/dev/ttymxc2"  # QTP console
 QTP_CONSOLE = X_UART3
 BAUDRATE = 115200
 
+BT_HCI = "hci0"
+BT_USB_ID = "0cf3:e500"
+BT_SCAN_SECONDS = 15
+BT_SERVICE = "bluetooth.service"
+BT_CONTROLLER_TIMEOUT = 20
+BT_LOG_FILE = "/qtp_log/usb_bluetooth.txt"
+
+TPM_DEVICES = ("/dev/tpm0", "/dev/tpmrm0")
+TPM_TCTI = "device:/dev/tpmrm0"
+TPM_COMMAND_TIMEOUT = 60
+TPM_RANDOM_BYTES = 16
+TPM_TEST_TEXT = "My Secret Password\n"
+TPM_LOG_FILE = "/qtp_log/tpm.txt"
+PCIE_DEVICE = "00:00.0"
+PCIE_VENDOR = "Synopsys"
+PCIE_DRIVER = "pcieport"
+PCIE_COMMAND_TIMEOUT = 15
+PCIE_LOG_FILE = "/qtp_log/pcie.txt"
+
+HDMI_FBTEST_TIMEOUT = 120
+HDMI_LOG_FILE = "/qtp_log/hdmi.txt"
+CAN_LOG_FILE = "/qtp_log/can_test.txt"
+HDMI_WESTON_SERVICE = "weston.service"
+HDMI_WESTON_SOCKET = "weston.socket"
+
+CAN_INTERFACES = ("can0", "can1")
+CAN_BITRATE = 500000
+CAN_RX_TIMEOUT = 5
+CAN_TEST_FRAMES = ("123#1122334455667788", "456#AABBCCDDEEFF0011")
+
 ETH_INTERFACES = {0: "eth0", 1: "eth1"}
 ETH_DURATION = 60
 ETH_PORT = 5201
