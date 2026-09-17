@@ -4,6 +4,10 @@ Start the target UART server on the board, then run the host and select the
 numbered test. The host sends commands over the UART3 QTP console, the target
 executes the test, and the host displays status/details and saves text logs.
 
+All 15 menu entries are documented in [Test Matrix](docs/test_matrix.md)
+and [Hardware Mapping](docs/hardware_mapping.md), including prerequisites,
+acceptance criteria, operator confirmation, cleanup and log destinations.
+
 ## Project structure
 
 ```text
@@ -163,9 +167,11 @@ Target `config.py` contains `ETH_INTERFACES` (defaults `eth0` and `eth1`),
 duration, port 5201, reporting interval 10 seconds, and minimum throughput.
 Confirm interface names with `ip link` and the board connector mapping.
 Bring the selected interface up before testing.
+QTP preparation clears IPv4 and takes the opposite interface DOWN, then
+brings the selected interface UP. The opposite interface is not restored.
 
 Install iperf3 on PC and target. On the PC it can be on PATH or in the host
-`iperf3` folder with its required DLLs. Run the Windows host as Administrator.
+`iperf3` or `iperf3.5_64` folder with its required DLLs. Run the Windows host as Administrator.
 Connect the selected port to the PC. The host reads `ipconfig`, selects the
 first usable Ethernet adapter (excluding Wi-Fi and common virtual adapters),
 and derives an adjacent board address within its subnet, excluding the gateway.
@@ -179,18 +185,20 @@ TCP iperf3 bound to the selected interface. Target tools required: `ip`
 Windows Firewall profiles are temporarily disabled during the test and their
 original states restored afterward, including on errors or Ctrl+C. The PC
 server is stopped and any added board address removed. Pre-existing IPs are
-preserved. Linux host firewall configuration is manual (TCP 5201 and ICMP).
+preserved on the selected interface; the opposite interface's IPv4 was cleared
+during preparation. Linux host firewall configuration is manual (TCP 5201 and ICMP).
 No firewall changes are made merely by starting QTP or editing the project.
 
 PASS requires link, ping, and a successful iperf3 run with receiver throughput
 above `ETH_MIN_MBPS` (default 0: connectivity/throughput validation, not a rated
 speed certification). Streamed results and cleanup messages are saved in the
-host log. Hardware validation is pending.
+host log. The user has reported both Ethernet tests working; retain individual
+run logs as evidence rather than treating this as rated-speed certification.
 
 ## TC-07 CAN0 and CAN1 Loopback
 
 Option 11 configures both CAN interfaces at 500000 bit/s, brings them up,
-and displays `ip -details link show` output. Connect CAN0 and CAN1 physically
+and saves `ip -details link show` output in the target log. Connect CAN0 and CAN1 physically
 on a correctly terminated bus before testing. This is an external bidirectional
 test, not controller-internal loopback. Loopback and listen-only modes are disabled.
 
@@ -202,7 +210,10 @@ five seconds per direction. Interfaces remain configured and up after testing.
 
 Requires root, `ip`, `cansend` (can-utils), and Python SocketCAN support on
 the target. CAN settings are in `config.py`; implementation is in `tests.py`.
-Progress and results are saved in the host log. Hardware validation is pending.
+The host shows bitrate setup and sent/received frames; up/down commands and
+interface dumps are hidden. Full diagnostics are appended to
+`/qtp_log/can_test.txt`; selected progress and results are saved in the host log.
+Implementation does not by itself establish hardware validation.
 
 ## TC-08 HDMI
 
@@ -212,6 +223,8 @@ also attempted after failure or timeout. Observe the HDMI display during the
 test, then answer YES/NO on the host. YES records PASS after successful command
 execution; NO records FAIL. Command failures remain FAIL regardless of the answer.
 Requires root, systemctl, and fbtest. Settings are in target `config.py`.
+Commands and fbtest output are saved only in `/qtp_log/hdmi.txt`; the host
+shows the connection note, result, log location and visual confirmation prompt.
 
 ## TC-09 USB Bluetooth
 
@@ -228,7 +241,8 @@ tested. The physical connector is not automatically verified. Repeat in the othe
 to validate both ports. Enable discovery/advertising on a nearby device.
 Requires root, lsusb, hciconfig, bluetoothctl and a running BlueZ service.
 Configuration is in target `config.py`; full output is appended to
-`/qtp_log/usb_bluetooth.txt`. Hardware validation is pending.
+`/qtp_log/usb_bluetooth.txt`. A user-provided run reported PASS with 33 observed
+devices on the connected adapter; this does not establish validation of both ports.
 
 ## TC-10 TPM Functionality
 
@@ -242,6 +256,9 @@ flush is performed. Tools use the kernel resource manager via
 Requires tpm2_getrandom, tpm2_createprimary, tpm2_create, tpm2_load,
 tpm2_rsaencrypt and tpm2_rsadecrypt. Each command has a 60-second timeout;
 the host polls for the final result. Full output: /qtp_log/tpm.txt.
+Command progress, random-data checks, and RSA verification messages are saved
+only in the target log, not streamed to the host console. The host displays
+the final status, summary details, and log location, then asks for confirmation.
 Settings are in target config.py. Hardware validation is pending.
 
 ## TC-11 PCIe Controller
@@ -250,6 +267,9 @@ Option 15 runs lspci -k and requires the configured Synopsys PCI bridge at
 00:00.0 with kernel driver pcieport on that same device. This verifies controller
 enumeration and driver binding, not endpoint connectivity or throughput.
 Settings are in target config.py. Full output: /qtp_log/pcie.txt.
+The command and raw bridge/driver output are saved only in the target log,
+not streamed to the host console. The host displays the final status,
+summary details, and log location, then asks for confirmation.
 Hardware validation is pending.
 
 Host logs are saved under `test_log/` relative to the host working directory.
